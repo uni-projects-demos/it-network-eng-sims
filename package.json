@@ -1,0 +1,50 @@
+{
+  "name": "it-network-eng-sims",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "IT network engineering simulations ported to Rust/WebAssembly for interactive web demos with SvelteKit UI.",
+  "author": "uni-projects-demos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uni-projects-demos/it-network-eng-sims.git"
+  },
+  "bugs": {
+    "url": "https://github.com/uni-projects-demos/it-network-eng-sims/issues"
+  },
+  "engines": {
+    "node": ">=26.6.4"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "wasm:build": "wasm-pack build engine --target web --out-dir ../src/lib/wasm/pkg --out-name it_network_eng --release",
+    "wasm:build:dev": "wasm-pack build engine --target web --out-dir ../src/lib/wasm/pkg --out-name it_network_eng --dev",
+    "dev:all": "npm run wasm:build:dev && npm run dev",
+    "build:all": "npm run wasm:build && npm run build",
+    "verify:fe": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && biome check .",
+    "verify:be": "cargo fmt --manifest-path engine/Cargo.toml -- --check && cargo clippy --manifest-path engine/Cargo.toml --all-targets --all-features -- -D warnings",
+    "verify:fix:fe": "biome check --write .",
+    "verify:fix:be": "cargo fmt --manifest-path engine/Cargo.toml && cargo clippy --fix --manifest-path engine/Cargo.toml --all-targets --all-features --allow-dirty --allow-staged --allow-no-vcs",
+    "verify": "npm run verify:be && npm run verify:fe",
+    "verify:fix": "npm run verify:fix:fe && npm run verify:fix:be"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@sveltejs/adapter-static": "4.0.0",
+    "@sveltejs/kit": "3.0.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.4",
+    "svelte": "5.57.1",
+    "svelte-check": "4.7.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.3.3"
+  },
+  "imports": {
+    "#lib": "./src/lib/index.ts",
+    "#lib/*": "./src/lib/*"
+  }
+}
