@@ -1,3 +1,5 @@
+#[rustfmt::skip]
+mod rip;
 mod transport;
 
 use serde::Serialize;

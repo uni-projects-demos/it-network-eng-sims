@@ -4,18 +4,18 @@ import english from "./locales/en.json";
 export type Locale = string;
 export type TranslationParams = Record<string, string | number | undefined>;
 
-interface Messages {
-  [key: string]: string | Messages;
+interface Msgs {
+  [key: string]: string | Msgs;
 }
-type LocaleLoader = () => Promise<Messages>;
+type LocaleLoader = () => Promise<Msgs>;
 
 const FB_LOCALE: Locale = "en";
 const STORAGE_KEY: string = "network-sim-locale";
 const PARAM_PATTERN: RegExp = /\{([A-Za-z0-9_]+)\}/gu;
 
-const fallback: Messages = english as Messages;
+const fallback: Msgs = english as Msgs;
 
-const modules: Record<string, LocaleLoader> = import.meta.glob<Messages>(
+const modules: Record<string, LocaleLoader> = import.meta.glob<Msgs>(
   ["./locales/*.json", "!./locales/en.json"],
   { import: "default" },
 );
@@ -30,12 +30,10 @@ for (const [path, load] of Object.entries(modules) as [string, LocaleLoader][]) 
   }
 }
 
-export const supportedLocales: Locale[] = [...loaders.keys()].sort();
+export const supportedLocales: Locale[] = [FB_LOCALE, ...loaders.keys()].sort();
 export const locale: Writable<Locale> = writable<Locale>(FB_LOCALE);
 
-const dicts: Map<Locale, Messages> = new Map<Locale, Messages>([[FB_LOCALE, fallback]]);
-
-const displayNames: Map<Locale, Intl.DisplayNames> = new Map<Locale, Intl.DisplayNames>();
+const dicts: Map<Locale, Msgs> = new Map<Locale, Msgs>([[FB_LOCALE, fallback]]);
 
 const RTL_BASES: ReadonlySet<string> = new Set<string>([
   "ar",
@@ -68,8 +66,8 @@ async function loadLocale(code: Locale): Promise<void> {
     return;
   }
 
-  const messages: Messages = await load();
-  dicts.set(code, messages);
+  const msgs: Msgs = await load();
+  dicts.set(code, msgs);
 }
 
 export function isLocaleRTL(code: Locale): boolean {
@@ -77,26 +75,26 @@ export function isLocaleRTL(code: Locale): boolean {
   return RTL_BASES.has(base);
 }
 
-function resolveMessage(messages: Messages | undefined, key: string): string | undefined {
-  if (messages === undefined) {
+function resMsg(msgs: Msgs | undefined, key: string): string | undefined {
+  if (msgs === undefined) {
     return undefined;
   }
 
-  let current: string | Messages | undefined = messages;
+  let cur: string | Msgs | undefined = msgs;
 
   for (const segment of key.split(".")) {
-    if (typeof current === "string") {
+    if (typeof cur === "string") {
       return undefined;
     }
 
-    current = current[segment];
+    cur = cur[segment];
 
-    if (current === undefined) {
+    if (cur === undefined) {
       return undefined;
     }
   }
 
-  return typeof current === "string" ? current : undefined;
+  return typeof cur === "string" ? cur : undefined;
 }
 
 export function translate(
@@ -104,51 +102,33 @@ export function translate(
   code: Locale = FB_LOCALE,
   params: TranslationParams = {},
 ): string {
-  const template: string =
-    resolveMessage(dicts.get(code), key) ?? resolveMessage(fallback, key) ?? key;
+  const template: string = resMsg(dicts.get(code), key) ?? resMsg(fallback, key) ?? key;
 
   return template.replace(PARAM_PATTERN, (_match: string, name: string): string => {
-    const value: string | number | undefined = params[name];
-    return value === undefined ? `{${name}}` : String(value);
+    const val: string | number | undefined = params[name];
+    return val === undefined ? `{${name}}` : String(val);
   });
 }
 
 export async function setLocale(code: Locale): Promise<void> {
-  const next: Locale = loaders.has(code) ? code : FB_LOCALE;
+  const nxt: Locale = code === FB_LOCALE || loaders.has(code) ? code : FB_LOCALE;
 
-  await loadLocale(next);
-  locale.set(next);
+  await loadLocale(nxt);
+  locale.set(nxt);
 
   if (typeof document !== "undefined") {
     const root: HTMLElement = document.documentElement;
 
-    root.lang = next;
-    root.dir = isLocaleRTL(next) ? "rtl" : "ltr";
-    root.dataset.locale = next;
+    root.lang = nxt;
+    root.dir = isLocaleRTL(nxt) ? "rtl" : "ltr";
+    root.dataset.locale = nxt;
   }
 
   if (typeof localStorage !== "undefined") {
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      localStorage.setItem(STORAGE_KEY, nxt);
     } catch {}
   }
 }
 
-export function localeDisplayName(code: Locale, displayLocale: Locale): string {
-  try {
-    let names: Intl.DisplayNames | undefined = displayNames.get(displayLocale);
-
-    if (names === undefined) {
-      names = new Intl.DisplayNames([displayLocale], { type: "language" });
-      displayNames.set(displayLocale, names);
-    }
-
-    const name: string | undefined = names.of(code);
-
-    if (name !== undefined && name.toLowerCase() !== code.toLowerCase()) {
-      return name;
-    }
-  } catch {}
-
-  return code;
-}
+export { localeDisplayName } from "./names.ts";

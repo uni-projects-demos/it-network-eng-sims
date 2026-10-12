@@ -24,9 +24,9 @@ export const sims: SimDef[] = [
   {
     id: "rip",
     nameKey: "ripTitle",
-    groupKey: "application",
+    groupKey: "network",
     descriptionKey: "ripRouting",
-    status: "unavailable",
+    status: "available",
   },
   {
     id: "flow",

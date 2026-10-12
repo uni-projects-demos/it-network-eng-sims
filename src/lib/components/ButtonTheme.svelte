@@ -7,7 +7,7 @@ let isDark: boolean = true;
 
 $: curLocale = $locale;
 
-function applyTheme(isNxt: boolean, persist: boolean = true): void {
+function applyTheme(isNxt: boolean, isPersist: boolean = true): void {
   isDark = isNxt;
 
   const root: HTMLElement = document.documentElement;
@@ -19,12 +19,12 @@ function applyTheme(isNxt: boolean, persist: boolean = true): void {
   const meta: HTMLMetaElement | null = document.querySelector<HTMLMetaElement>(
     'meta[name="theme-color"]',
   );
-  const themeColor: string | undefined = isDark ? meta?.dataset.dark : meta?.dataset.light;
-  if (meta !== null && themeColor !== undefined) {
-    meta.content = themeColor;
+  const themeCol: string | undefined = isDark ? meta?.dataset.dark : meta?.dataset.light;
+  if (meta !== null && themeCol !== undefined) {
+    meta.content = themeCol;
   }
 
-  if (persist) {
+  if (isPersist) {
     try {
       localStorage.setItem("network-sim-theme", theme);
     } catch {}

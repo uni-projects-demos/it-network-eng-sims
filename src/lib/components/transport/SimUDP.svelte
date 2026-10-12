@@ -11,8 +11,8 @@ import { runSimUDP } from "#lib/wasm/engine.ts";
 type TranslateFn = (key: string, params?: TranslationParams) => string;
 
 type StatRow = {
-  label: string;
-  value: number;
+  lbl: string;
+  val: number;
 };
 
 function translateUDP(
@@ -132,7 +132,7 @@ function eventText(event: SimEvent, code: Locale): string {
   }
 }
 
-function receivedPacketLabel(event: SimEvent, code: Locale): string {
+function rcvdPacketLbl(event: SimEvent, code: Locale): string {
   return event.packet?.data_type === 1
     ? translateUDP("ackReceived", code)
     : translateUDP("dataReceived", code);
@@ -152,7 +152,7 @@ function calcStatRows(events: SimEvent[], code: Locale): readonly StatRow[] {
     (event: SimEvent): boolean => event.to === "channel" && event._type === "ack-send",
   ).length;
 
-  const dataPacketsReceived: number = events.filter(
+  const dataPacketsRcvd: number = events.filter(
     (event: SimEvent): boolean =>
       event._type === "packet-received" &&
       event.module === "receiver" &&
@@ -173,11 +173,11 @@ function calcStatRows(events: SimEvent[], code: Locale): readonly StatRow[] {
   ).length;
 
   return [
-    { label: translateUDP("dataPacketsReceived", code), value: dataPacketsReceived },
-    { label: translateUDP("dataTransmissionAttempts", code), value: dataTransmissionAttempts },
-    { label: translateUDP("ackTransmissionAttempts", code), value: ackTransmissionAttempts },
-    { label: translateUDP("totalTransmissions", code), value: totalTransmissions },
-    { label: translateUDP("packetLosses", code), value: packetLosses },
+    { lbl: translateUDP("dataPacketsReceived", code), val: dataPacketsRcvd },
+    { lbl: translateUDP("dataTransmissionAttempts", code), val: dataTransmissionAttempts },
+    { lbl: translateUDP("ackTransmissionAttempts", code), val: ackTransmissionAttempts },
+    { lbl: translateUDP("totalTransmissions", code), val: totalTransmissions },
+    { lbl: translateUDP("packetLosses", code), val: packetLosses },
   ];
 }
 
@@ -195,7 +195,7 @@ async function runSimulation(
   {runSimulation}
   {eventText}
   {packetName}
-  {receivedPacketLabel}
+  {rcvdPacketLbl}
   {isAckPacket}
   {calcStatRows}
 />

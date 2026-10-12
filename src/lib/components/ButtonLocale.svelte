@@ -58,12 +58,12 @@ function handleDialogClick(event: MouseEvent): void {
 
   const box: DOMRect = dialog.getBoundingClientRect();
 
-  const outside: boolean =
+  const isOutside: boolean =
     event.clientX < box.left ||
     event.clientX > box.right ||
     event.clientY < box.top ||
     event.clientY > box.bottom;
-  if (outside) {
+  if (isOutside) {
     dialog.close();
   }
 }

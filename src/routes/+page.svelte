@@ -4,6 +4,7 @@ import ButtonLocale from "#lib/components/ButtonLocale.svelte";
 import ButtonTheme from "#lib/components/ButtonTheme.svelte";
 import SimTCP from "#lib/components/transport/SimTCP.svelte";
 import SimUDP from "#lib/components/transport/SimUDP.svelte";
+import SimRIP from "#lib/components/network/SimRIP.svelte";
 import { locale, translate } from "#lib/i18n/index.ts";
 import { sims } from "#lib/sims/registry.ts";
 
@@ -14,7 +15,7 @@ type TranslateFn = (key: string) => string;
 let tooltipSim: Sim | null = null;
 let tooltipX: number = 0;
 let tooltipY: number = 0;
-let selectedSim: SimId = "tcp";
+let selectedSim: SimId = "rip";
 
 let t: TranslateFn;
 $: t = (key: string): string => translate(`nav.${key}`, $locale);
@@ -37,13 +38,16 @@ function hideTooltip(): void {
   <title>{t('siteTitle')}</title>
 </svelte:head>
 
-<div class="h-dvh overflow-hidden max-[1180px]:h-auto max-[1180px]:min-h-dvh max-[1180px]:overflow-visible">
+<div class={[
+  "h-dvh overflow-hidden max-[1180px]:h-auto max-[1180px]:min-h-dvh max-[1180px]:overflow-visible",
+  selectedSim === "rip" && "max-[1240px]:h-auto max-[1240px]:min-h-dvh max-[1240px]:overflow-visible",
+]}>
   <header
-    class="relative z-20 flex h-[78px] items-center gap-3.5 border-b border-[var(--divider)] bg-[var(--header-bg)] px-5 py-3 text-[var(--header-text)] backdrop-blur-[14px] max-[1180px]:h-auto max-[1180px]:min-h-[78px] max-[1180px]:px-3.5 max-[820px]:flex-wrap max-[820px]:gap-2 max-[480px]:p-2"
+    class="relative z-20 flex h-[78px] items-center gap-3.5 border-b border-[var(--divider)] bg-[var(--header-bg)] px-5 py-3 text-[var(--header-text)] backdrop-blur-[14px] max-[1180px]:h-auto max-[1180px]:min-h-[78px] max-[1180px]:px-3.5 max-[820px]:grid max-[820px]:grid-cols-[minmax(0,1fr)_auto] max-[820px]:gap-x-2 max-[820px]:gap-y-2 max-[480px]:p-2"
   >
-    <div class="flex min-w-0 flex-none items-center gap-2.5 max-[820px]:basis-full max-[820px]:grow">
+    <div class="flex min-w-0 flex-none items-center gap-2.5 max-[820px]:min-w-0 max-[480px]:gap-1.5">
       <div
-        class="grid size-11 flex-none place-items-center rounded-[9px] border border-[var(--header-control-border)] bg-[var(--header-control-bg)] text-[var(--header-control-text)]"
+        class="grid size-11 flex-none place-items-center max-[480px]:size-9 rounded-[9px] border border-[var(--header-control-border)] bg-[var(--header-control-bg)] text-[var(--header-control-text)]"
         aria-hidden="true"
       >
         <svg class="size-[22px] overflow-visible" viewBox="0 0 24 24">
@@ -58,26 +62,26 @@ function hideTooltip(): void {
       </div>
 
       <h1
-        class="m-0 whitespace-nowrap text-lg tracking-[-.02em] text-[var(--header-text)] max-[1180px]:text-base max-[700px]:whitespace-normal max-[700px]:text-[15px] max-[700px]:leading-[1.15]"
+        class="m-0 min-w-0 text-lg tracking-[-.02em] text-[var(--header-text)] max-[1180px]:text-base max-[820px]:text-[15px] max-[820px]:leading-[1.15] max-[480px]:text-[13px]"
       >
         {t('siteTitle')}
       </h1>
     </div>
 
-    <div class="flex min-w-0 flex-1 items-center gap-2 max-[820px]:w-full max-[820px]:basis-full">
-      <nav
+    <nav
         class="
-          flex min-w-0 flex-nowrap items-center gap-1.5
+          flex min-w-0 flex-1 flex-nowrap items-center gap-1.5
           overflow-x-auto overflow-y-hidden
-          max-[820px]:flex-1
-          max-[480px]:gap-1
+          max-[820px]:col-span-2 max-[820px]:row-start-2 max-[820px]:w-full
+          max-[820px]:overflow-visible max-[820px]:justify-between max-[820px]:gap-1
+          max-[480px]:gap-0.5
         "
         aria-label={t('simulationSelector')}
       >
       {#each sims as sim}
         <button
           class={[
-            'grid h-11 flex-none content-center gap-px rounded-[10px] border px-2.5 py-[5px] text-start',
+            'grid h-11 flex-none content-center gap-px rounded-[10px] border px-2.5 py-[5px] text-start max-[820px]:min-w-0 max-[820px]:flex-1 max-[820px]:justify-items-center max-[820px]:px-1',
             'text-(--header-text) transition-colors',
             sim.status === 'available'
               ? 'cursor-pointer hover:border-(--header-control-border) hover:bg-(--header-control-hover)'
@@ -99,23 +103,22 @@ function hideTooltip(): void {
           }}
         >
           <small
-            class="text-[8px] leading-[1.1] tracking-[.08em] text-(--header-muted) uppercase"
+            class="text-[8px] leading-[1.1] tracking-[.08em] text-(--header-muted) uppercase max-[820px]:text-center"
           >
             {t(sim.groupKey)}
           </small>
 
-          <strong class="whitespace-nowrap text-[11px] leading-[1.15] font-bold">
+          <strong class="text-[11px] leading-[1.15] font-bold max-[820px]:text-center max-[820px]:[overflow-wrap:anywhere] max-[480px]:text-[10px]">
             {t(sim.nameKey)}
           </strong>
         </button>
       {/each}
-      </nav>
+    </nav>
 
-      <div class="ms-auto flex h-11 flex-none items-center gap-2" aria-label={t('sitePreferences')}>
+    <div class="ms-auto flex h-11 flex-none items-center gap-2 max-[820px]:row-start-1 max-[820px]:col-start-2 max-[480px]:h-9 max-[480px]:gap-1 max-[480px]:[&_.icon-button]:h-9 max-[480px]:[&_.icon-button]:min-w-9 max-[480px]:[&_.icon-button]:w-9 max-[480px]:[&_.icon-button]:p-1.5" aria-label={t('sitePreferences')}>
         <ButtonTheme />
         <ButtonLocale />
         <ButtonGH />
-      </div>
     </div>
   </header>
 
@@ -163,14 +166,22 @@ function hideTooltip(): void {
     </div>
   {/if}
 
-  <div class="h-[calc(100dvh-78px)] min-h-0 max-[1180px]:h-auto">
+  <div class={[
+    "h-[calc(100dvh-78px)] min-h-0 max-[1180px]:h-auto",
+    selectedSim === "rip" && "max-[1240px]:h-auto",
+  ]}>
     <main
-      class="h-full min-w-0 overflow-hidden p-3 max-[1180px]:h-auto max-[1180px]:min-h-[calc(100dvh-78px)] max-[1180px]:overflow-visible max-[700px]:p-2"
+      class={[
+        "h-full min-w-0 overflow-hidden p-3 max-[1180px]:h-auto max-[1180px]:min-h-[calc(100dvh-78px)] max-[1180px]:overflow-visible max-[700px]:p-2",
+        selectedSim === "rip" && "max-[1240px]:h-auto max-[1240px]:min-h-[calc(100dvh-78px)] max-[1240px]:overflow-visible",
+      ]}
     >
       {#if selectedSim === 'tcp'}
         <SimTCP />
       {:else if selectedSim === 'udp'}
         <SimUDP />
+      {:else if selectedSim === 'rip'}
+        <SimRIP />
       {/if}
     </main>
   </div>

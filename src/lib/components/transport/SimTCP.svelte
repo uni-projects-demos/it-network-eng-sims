@@ -11,13 +11,13 @@ import { runSimTCP } from "#lib/wasm/engine.ts";
 type TranslateFn = (key: string, params?: TranslationParams) => string;
 
 type StatRow = {
-  label: string;
-  value: number;
+  lbl: string;
+  val: number;
 };
 
 type SpecialEventDisplay = {
   type: "warning" | "info" | "danger";
-  label: string;
+  lbl: string;
 };
 
 let bitErrProb: number = 0.1;
@@ -172,7 +172,7 @@ function eventText(event: SimEvent, code: Locale): string {
   }
 }
 
-function receivedPacketLabel(event: SimEvent, code: Locale): string {
+function rcvdPacketLbl(event: SimEvent, code: Locale): string {
   const type: number | undefined = event.packet?.data_type;
 
   if (type === 2) {
@@ -202,21 +202,21 @@ function specialEventDisplay(
   if (event._type === "bit-err") {
     return {
       type: "warning",
-      label: translateTCP("bitErrInjected", code),
+      lbl: translateTCP("bitErrInjected", code),
     };
   }
 
   if (event._type === "handshake-complete") {
     return {
       type: "info",
-      label: translateTCP("handshakeComplete", code),
+      lbl: translateTCP("handshakeComplete", code),
     };
   }
 
   if (event._type === "handshake-failed") {
     return {
       type: "danger",
-      label: translateTCP("handshakeFailed", code),
+      lbl: translateTCP("handshakeFailed", code),
     };
   }
 
@@ -235,7 +235,7 @@ function calcStatRows(events: SimEvent[], code: Locale): readonly StatRow[] {
       ["ack-send", "syn-ack-send", "handshake-ack-send"].includes(event._type),
   ).length;
 
-  const dataPacketsReceived: number = events.filter(
+  const dataPacketsRcvd: number = events.filter(
     (event: SimEvent): boolean =>
       event._type === "packet-received" &&
       event.module === "receiver" &&
@@ -263,12 +263,12 @@ function calcStatRows(events: SimEvent[], code: Locale): readonly StatRow[] {
   ).length;
 
   return [
-    { label: translateTCP("dataPacketsReceived", code), value: dataPacketsReceived },
-    { label: translateTCP("dataTransmissionAttempts", code), value: dataTransmissionAttempts },
-    { label: translateTCP("ackTransmissionAttempts", code), value: ackTransmissionAttempts },
-    { label: translateTCP("totalTransmissions", code), value: totalTransmissions },
-    { label: translateTCP("packetLosses", code), value: packetLosses },
-    { label: translateTCP("bitErrs", code), value: bitErrs },
+    { lbl: translateTCP("dataPacketsReceived", code), val: dataPacketsRcvd },
+    { lbl: translateTCP("dataTransmissionAttempts", code), val: dataTransmissionAttempts },
+    { lbl: translateTCP("ackTransmissionAttempts", code), val: ackTransmissionAttempts },
+    { lbl: translateTCP("totalTransmissions", code), val: totalTransmissions },
+    { lbl: translateTCP("packetLosses", code), val: packetLosses },
+    { lbl: translateTCP("bitErrs", code), val: bitErrs },
   ];
 }
 
@@ -331,7 +331,7 @@ async function runSimulation(
   {runSimulation}
   {eventText}
   {packetName}
-  {receivedPacketLabel}
+  {rcvdPacketLbl}
   {isAckPacket}
   {calcStatRows}
   {specialEventDisplay}

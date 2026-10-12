@@ -4,6 +4,12 @@
 >
 import { onDestroy, tick, type Snippet } from "svelte";
 import PayloadSizeSelect from "#lib/components/transport/PayloadSizeSelect.svelte";
+import PlaybackControls from "#lib/components/simulation/PlaybackControls.svelte";
+import ConsoleTabs from "#lib/components/simulation/ConsoleTabs.svelte";
+import StatRows from "#lib/components/simulation/StatRows.svelte";
+import { SIM_PANEL, SIM_HEADING, SIM_DIAGRAM_HEADER, SIM_SETTINGS_LBL, SIM_PRIMARY_BTN } from "#lib/components/simulation/styles.ts";
+import type { StatRow } from "#lib/sims/shared/stats.ts";
+import { PlaybackTimer, type PlaybackDir } from "#lib/sims/shared/playback.ts";
 import {
   isLocaleRTL,
   type Locale,
@@ -25,22 +31,17 @@ type TranslateFn = (key: string, params?: TranslationParams) => string;
 type TextAnchor = "start" | "end";
 
 type ConsoleLine = {
-  index: number;
+  idx: number;
   event_id: number;
   module: ModuleName;
   text: string;
-};
-
-type StatRow = {
-  label: string;
-  value: string | number;
 };
 
 type SpecialEventType = "warning" | "info" | "danger";
 
 type SpecialEventDisplay = {
   type: SpecialEventType;
-  label: string;
+  lbl: string;
 };
 
 export let translateSim: (
@@ -57,7 +58,7 @@ export let runSimulation: (
 
 export let eventText: (event: TEvent, code: Locale) => string;
 export let packetName: (event: TEvent, code: Locale) => string;
-export let receivedPacketLabel: (event: TEvent, code: Locale) => string;
+export let rcvdPacketLbl: (event: TEvent, code: Locale) => string;
 export let isAckPacket: (event: TEvent) => boolean;
 export let calcStatRows: (events: TEvent[], code: Locale) => readonly StatRow[];
 
@@ -80,11 +81,11 @@ let packetLossProb: number = 0.3;
 let payloadSize: number = DEFAULT_PAYLOAD_SIZE;
 let res: TransportResult<TEvent> | null = null;
 let curIdx: number = -1;
-let playing: boolean = false;
+let isPlaying: boolean = false;
 let speed: number = 1;
 let activeModule: ModuleTab = "all";
 let err: string = "";
-let timer: ReturnType<typeof setTimeout> | undefined;
+const playbackTimer: PlaybackTimer = new PlaybackTimer();
 let seqScrollEl: HTMLDivElement | undefined;
 let consoleEl: HTMLDivElement | undefined;
 let seqWidth: number = 800;
@@ -92,18 +93,18 @@ let autoFollowIdx: number = -2;
 
 const moduleTabs: readonly ModuleTab[] = ["all", "sender", "channel", "receiver"];
 const lanes: readonly Endpoint[] = ["sender", "channel", "receiver"];
-const speedOptions: readonly number[] = [0.25, 0.5, 1, 2, 4, 8];
 
 let diagramWidth: number;
 let laneX: Record<Endpoint, number>;
 let laneCardWidth: number;
-let packetLabelWidth: number;
+let packetLblWidth: number;
 
 let playedEvents: TEvent[];
 let curEvent: TEvent | null | undefined;
 let consoleLines: ConsoleLine[];
 let statRows: readonly StatRow[];
-let receivedMsg: string;
+let consoleTabs: readonly { val: ModuleTab; lbl: string }[];
+let rcvdMsg: string;
 let hasEvents: boolean;
 let canGoBack: boolean;
 let canGoForward: boolean;
@@ -125,7 +126,7 @@ $: laneX = {
 
 $: laneCardWidth = Math.min(122, Math.max(82, diagramWidth * 0.26));
 
-$: packetLabelWidth = Math.min(150, Math.max(92, diagramWidth * 0.3));
+$: packetLblWidth = Math.min(150, Math.max(92, diagramWidth * 0.3));
 
 $: playedEvents = res === null ? [] : res.events.slice(0, curIdx + 1);
 
@@ -133,8 +134,8 @@ $: curEvent = res !== null && curIdx >= 0 ? res.events[curIdx] : null;
 
 $: consoleLines = playedEvents
   .map(
-    (event: TEvent, index: number): ConsoleLine => ({
-      index,
+    (event: TEvent, idx: number): ConsoleLine => ({
+      idx,
       event_id: event.id,
       module: event.module,
       text: eventText(event, curLocale),
@@ -146,8 +147,9 @@ $: consoleLines = playedEvents
   );
 
 $: statRows = calcStatRows(playedEvents, curLocale);
+$: consoleTabs = moduleTabs.map((tab: ModuleTab): { val: ModuleTab; lbl: string; } => ({ val: tab, lbl: tab === "all" ? t("all"): moduleLbl(tab, curLocale) }));
 
-$: receivedMsg = playedEvents
+$: rcvdMsg = playedEvents
   .filter(
     (event: TEvent): boolean =>
       event.module === "receiver" &&
@@ -186,8 +188,8 @@ async function run(): Promise<void> {
     res = await runSimulation(msg, packetLossProb, payloadSize);
 
     curIdx = -1;
-    playing = true;
-    scheduleNext();
+    isPlaying = true;
+    scheduleNxt();
   } catch (e: unknown) {
     err = e instanceof Error ? e.message : t("errorSimulation");
 
@@ -196,28 +198,26 @@ async function run(): Promise<void> {
   }
 }
 
-function scheduleNext(): void {
-  if (!playing || res === null) {
+function scheduleNxt(): void {
+  if (!isPlaying || res === null) {
     return;
   }
 
-  clearTimer();
-
   const delay: number = Math.max(60, 700 / speed);
 
-  timer = setTimeout((): void => {
+  playbackTimer.schedule(delay, (): void => {
     if (res === null) {
       return;
     }
 
     if (curIdx >= res.events.length - 1) {
-      playing = false;
+      isPlaying = false;
       return;
     }
 
     curIdx += 1;
-    scheduleNext();
-  }, delay);
+    scheduleNxt();
+  });
 }
 
 function togglePlay(): void {
@@ -229,11 +229,11 @@ function togglePlay(): void {
     curIdx = -1;
   }
 
-  playing = !playing;
-  if (playing) {
-    scheduleNext();
+  isPlaying = !isPlaying;
+  if (isPlaying) {
+    scheduleNxt();
   } else {
-    clearTimer();
+    playbackTimer.clear();
   }
 }
 
@@ -247,8 +247,8 @@ function step(delta: number): void {
     return;
   }
 
-  playing = false;
-  clearTimer();
+  isPlaying = false;
+  playbackTimer.clear();
   curIdx = nxtIdx;
 }
 
@@ -262,29 +262,21 @@ function jump(idx: number): void {
     return;
   }
 
-  playing = false;
-  clearTimer();
+  isPlaying = false;
+  playbackTimer.clear();
   curIdx = nxtIdx;
 }
 
 function stop(): void {
-  playing = false;
-  clearTimer();
+  isPlaying = false;
+  playbackTimer.clear();
 }
 
-function clearTimer(): void {
-  if (timer !== undefined) {
-    clearTimeout(timer);
-  }
+function setSpeed(nxt: number): void {
+  speed = nxt;
 
-  timer = undefined;
-}
-
-function setSpeed(next: number): void {
-  speed = next;
-
-  if (playing) {
-    scheduleNext();
+  if (isPlaying) {
+    scheduleNxt();
   }
 }
 
@@ -318,11 +310,11 @@ function sideTextAnchor(side: "left" | "right", rtl: boolean): TextAnchor {
   return rtl ? "end" : "start";
 }
 
-function moduleLabel(module: ModuleName, code: Locale = curLocale): string {
+function moduleLbl(module: ModuleName, code: Locale = curLocale): string {
   return translateSim(module, code);
 }
 
-function packetLabel(event: TEvent, code: Locale = curLocale): string {
+function packetLbl(event: TEvent, code: Locale = curLocale): string {
   return packetName(event, code) || event._type.replaceAll("-", " ");
 }
 
@@ -330,18 +322,27 @@ function getSpecialEventDisplay(event: TEvent): SpecialEventDisplay | undefined 
   return specialEventDisplay?.(event, curLocale);
 }
 
-onDestroy(clearTimer);
+function movePlayback(dir: PlaybackDir): void {
+  switch (dir) {
+    case "start": jump(-1); break;
+    case "back": step(-1); break;
+    case "forward": step(1); break;
+    case "end": if (res !== null) jump(res.events.length - 1); break;
+  }
+}
+
+onDestroy((): void => playbackTimer.clear());
 </script>
 
 <section
   class="grid h-full min-h-0 grid-cols-[minmax(238px,.78fr)_minmax(440px,1.62fr)_minmax(300px,1fr)] grid-rows-[auto_minmax(0,1fr)] items-stretch gap-3 max-[1180px]:h-auto max-[1180px]:grid-cols-[minmax(250px,.72fr)_minmax(0,1.55fr)] max-[1180px]:grid-rows-[auto_minmax(280px,1fr)_minmax(300px,.72fr)] max-[700px]:grid-cols-[minmax(0,1fr)] max-[700px]:grid-rows-[auto]"
 >
   <aside
-    class="col-start-1 row-start-1 min-h-0 self-start overflow-visible rounded-[13px] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-[13px] text-[var(--page-text)] shadow-[var(--panel-shadow)]"
+    class={`${SIM_PANEL} col-start-1 row-start-1 min-h-0 self-start overflow-visible px-3.5 py-[13px]`}
   >
-    <h2 class="m-0 mb-[9px] text-sm tracking-[-.015em] text-[var(--page-text)]">{t('settings')}</h2>
+    <h2 class={`${SIM_HEADING} mb-[9px]`}>{t('settings')}</h2>
 
-    <label class="mt-[9px] grid gap-[5px] text-[10px] font-[650] text-[var(--control-text)]">
+    <label class={SIM_SETTINGS_LBL}>
       <span>{t('msg')}</span>
       <textarea
         class="h-[100px] min-h-[78px] max-h-[150px] w-full resize-y rounded-[9px] border border-[var(--field-border)] bg-[var(--field-bg)] px-[9px] py-[7px] leading-[1.35] text-[var(--page-text)] outline-none focus:border-[var(--accent-border)] focus:shadow-[0_0_0_3px_var(--focus-ring)]"
@@ -351,7 +352,7 @@ onDestroy(clearTimer);
       ></textarea>
     </label>
 
-    <label class="mt-[9px] grid gap-[5px] text-[10px] font-[650] text-[var(--control-text)]">
+    <label class={SIM_SETTINGS_LBL}>
       <span class="flex items-baseline justify-between gap-2">
         {t('packetLossProb')} <strong>P = {packetLossProb.toFixed(2)}</strong>
       </span>
@@ -370,10 +371,10 @@ onDestroy(clearTimer);
     {/if}
 
     <PayloadSizeSelect
-      label={t("maxPayload")}
-      headerLabel={payloadHeaderKey === undefined ? undefined : t(payloadHeaderKey)}
+      lbl={t("maxPayload")}
+      headerLbl={payloadHeaderKey === undefined ? undefined : t(payloadHeaderKey)}
       headerSize={payloadHeaderSize}
-      bind:value={payloadSize}
+      bind:val={payloadSize}
     />
 
     {#if settingsAfterPayload}
@@ -381,126 +382,34 @@ onDestroy(clearTimer);
     {/if}
 
     <button
-      class="mt-[11px] min-h-9 w-full rounded-[9px] border-0 bg-[var(--primary)] font-extrabold text-[var(--primary-text)]"
+      class={`${SIM_PRIMARY_BTN} mt-[11px] w-full`}
       onclick={run}
     >{t('runSim')}</button>
     {#if err}<p class="mt-[7px] mb-0 text-[10px] text-[var(--danger)]">{err}</p>{/if}
   </aside>
 
   <section
-    class="
+    class={`${SIM_PANEL}
       @container
       col-start-2 row-start-1 row-span-2
       flex min-h-0 flex-col overflow-hidden
-      rounded-[13px]
-      border border-(--border)
-      bg-(--surface)
-      text-(--page-text)
-      shadow-[var(--panel-shadow)]
 
       max-[1180px]:min-h-[620px]
       max-[700px]:col-start-1
       max-[700px]:row-start-2
       max-[700px]:row-span-1
       max-[700px]:min-h-0
-    "
+    `}
   >
-    <div
-      class="
-        grid flex-none
-        grid-cols-[minmax(120px,1fr)_auto_minmax(120px,1fr)]
-        items-center gap-2
-        border-b border-(--divider)
-        px-2.5 py-2
-
-        @max-[760px]:grid-cols-[minmax(0,1fr)_auto]
-        @max-[760px]:items-start
-      "
-    >
-      <div class="min-w-0 @max-[760px]:col-span-2">
-        <h2
-          class="
-            m-0 overflow-hidden
-            text-sm tracking-[-.015em]
-            text-ellipsis whitespace-nowrap
-            text-(--page-text)
-          "
-        >
-          {t('seqDiagram')}
-        </h2>
-      </div>
-
-      <div
-        class="
-          flex min-w-0 flex-nowrap
-          items-center justify-center gap-1
-
-          @max-[760px]:flex-wrap
-          @max-[760px]:justify-start
-        "
-        aria-label={t('sequenceControls')}
-      >
-        <button
-          class="min-h-[30px] whitespace-nowrap rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[9px] text-[var(--control-text)]"
-          onclick={(): void => jump(-1)}
-          disabled={!canGoBack}
-          title={t('start')}
-        >⏮</button>
-
-        <button
-          class="min-h-[30px] whitespace-nowrap rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[9px] text-[var(--control-text)]"
-          onclick={(): void => step(-1)}
-          disabled={!canGoBack}
-        >{t('stepBack')}</button>
-
-        <button
-          class="min-h-[30px] min-w-[62px] whitespace-nowrap rounded-[7px] border border-transparent bg-[var(--primary)] px-2 text-[9px] font-extrabold text-[var(--primary-text)]"
-          onclick={togglePlay}
-          disabled={!hasEvents}
-        >
-          {playing ? t('pause') : curIdx >= (res?.events.length ?? 1) - 1 && hasEvents ? t('replay') : t('play')}
-        </button>
-
-        <button
-          class="min-h-[30px] whitespace-nowrap rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[9px] text-[var(--control-text)]"
-          onclick={(): void => step(1)}
-          disabled={!canGoForward}
-        >{t('stepForward')}</button>
-
-        <button
-          class="min-h-[30px] whitespace-nowrap rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[9px] text-[var(--control-text)]"
-          onclick={(): void => {
-            if (res !== null) {
-              jump(res.events.length - 1);
-            }
-          }}
-          disabled={!canGoForward}
-          title={t('end')}
-        >⏭</button>
-      </div>
-
-      <div
-        class="
-          flex flex-wrap justify-self-end gap-[3px]
-          rounded-lg
-          border border-[var(--control-border)]
-          bg-[var(--surface-2)]
-          p-[3px]
-
-          @max-[420px]:max-w-[120px]
-        "
-        aria-label={t('playbackSpeed')}
-      >
-        {#each speedOptions as option}
-          <button
-            class={[
-              'rounded-[5px] border-0 bg-transparent px-[7px] py-1 text-[9px] text-[var(--muted-text)]',
-              speed === option && 'bg-[var(--selected-bg)] text-[var(--selected-text)] shadow-[inset_0_0_0_1px_var(--accent-border)]'
-            ]}
-            onclick={(): void => setSpeed(option)}
-          >{option}×</button>
-        {/each}
-      </div>
+    <div class={SIM_DIAGRAM_HEADER}>
+      <h2 class={`${SIM_HEADING} min-w-0 overflow-hidden text-ellipsis whitespace-nowrap`}>{t('seqDiagram')}</h2>
+      <PlaybackControls {isPlaying} {speed} onMove={movePlayback} onToggle={togglePlay} onSpeed={setSpeed}
+        canBack={canGoBack} canForward={canGoForward} canEnd={canGoForward} canPlay={hasEvents}
+        playLbl={curIdx >= (res?.events.length ?? 1) - 1 && hasEvents ? t('replay'): t('play')}
+        pauseLbl={t('pause')} backLbl={t('stepBack')} forwardLbl={t('stepForward')}
+        startTitle={t('start')} endTitle={t('end')}
+        controlsLbl={t('sequenceControls')} speedLbl={t('playbackSpeed')}/>
+      <div aria-hidden="true" class="@max-[880px]:hidden"></div>
     </div>
     <div
       class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[var(--diagram-bg)] [scroll-behavior:smooth] max-[700px]:min-h-[330px] max-[700px]:max-h-[540px]"
@@ -576,7 +485,7 @@ onDestroy(clearTimer);
                 y={y + 5}
                 text-anchor={sideTextAnchor("right", isRtl)}
                 class="event-label"
-              >{specialEvent.label}</text>
+              >{specialEvent.lbl}</text>
             {:else if event._type === 'timeout'}
               {@const timeoutX = event.module === "receiver" ? laneX.receiver : laneX.sender}
               <path d={`M ${timeoutX - 14} ${y - 10} q -16 10 0 20`} class="timeout-loop" />
@@ -593,7 +502,7 @@ onDestroy(clearTimer);
                 y={y + 5}
                 text-anchor={sideTextAnchor(event.to === "receiver" ? "left" : "right", isRtl)}
                 class="event-label received-label"
-              >{receivedPacketLabel(event, curLocale)}</text>
+              >{rcvdPacketLbl(event, curLocale)}</text>
             {:else if event._type === 'receiver-terminated'}
               <circle cx={laneX.receiver} cy={y} r="10" class="terminated-dot" />
               <text
@@ -616,17 +525,17 @@ onDestroy(clearTimer);
               <text x={diagramWidth * .5} y={y + 5} text-anchor="middle" class="deadlock-label">{t('deadlock')}</text>
             {:else if specialEvent?.type === "danger"}
               <rect x={diagramWidth * .27} y={y - 14} width={diagramWidth * .46} height="28" rx="8" class="deadlock-banner" />
-              <text x={diagramWidth * .5} y={y + 4} text-anchor="middle" class="deadlock-label">{specialEvent.label}</text>
+              <text x={diagramWidth * .5} y={y + 4} text-anchor="middle" class="deadlock-label">{specialEvent.lbl}</text>
             {:else if specialEvent?.type === "info"}
               <rect x={diagramWidth * .27} y={y - 14} width={diagramWidth * .46} height="28" rx="8" class="info-banner" />
-              <text x={diagramWidth * .5} y={y + 4} text-anchor="middle" class="info-label">{specialEvent.label}</text>
+              <text x={diagramWidth * .5} y={y + 4} text-anchor="middle" class="info-label">{specialEvent.lbl}</text>
             {:else if event._type === 'complete'}
               <rect x={diagramWidth * .27} y={y - 14} width={diagramWidth * .46} height="28" rx="8" class="complete-banner" />
               <text x={diagramWidth * .5} y={y + 4} text-anchor="middle" class="complete-label">{t('eventComplete')}</text>
             {:else if event.from && event.to}
               <line x1={fromX} x2={toX} y1={y} y2={y} class="packet-line" marker-end={isAck ? 'url(#arrow-ack)' : 'url(#arrow-data)'} />
-              <rect x={(fromX + toX) / 2 - packetLabelWidth / 2} y={y - 13} width={packetLabelWidth} height="25" rx="7" class="packet-label-bg" />
-              <text x={(fromX + toX) / 2} y={y + 4} text-anchor="middle" class="packet-label">{packetLabel(event, curLocale)}</text>
+              <rect x={(fromX + toX) / 2 - packetLblWidth / 2} y={y - 13} width={packetLblWidth} height="25" rx="7" class="packet-label-bg" />
+              <text x={(fromX + toX) / 2} y={y + 4} text-anchor="middle" class="packet-label">{packetLbl(event, curLocale)}</text>
               {#if idx === curIdx}
                 <circle r="6" cy={y} class="moving-packet">
                   <animate attributeName="cx" from={fromX} to={toX} dur={`${Math.max(0.15, 0.7 / speed)}s`} fill="freeze" />
@@ -641,7 +550,7 @@ onDestroy(clearTimer);
     <div class="flex min-h-10 flex-none items-center gap-2 overflow-hidden border-t border-[var(--divider)] px-2.5 py-[7px] text-[10px] text-[var(--muted-text)]">
       {#if curEvent}
         <span class={`module-pill ${curEvent.module} rounded-full px-1.5 py-[3px] text-[8px] font-extrabold uppercase`}>
-          {moduleLabel(curEvent.module, curLocale)}
+          {moduleLbl(curEvent.module, curLocale)}
         </span>
         <strong class="whitespace-nowrap text-[var(--page-text)]">{t('event')} {curIdx + 1} / {res?.events.length}</strong>
         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{eventText(curEvent, curLocale)}</span>
@@ -652,43 +561,26 @@ onDestroy(clearTimer);
   </section>
 
   <section
-    class="col-start-1 row-start-2 flex min-h-0 flex-col overflow-hidden rounded-[13px] border border-[var(--border)] bg-[var(--surface)] p-[11px] text-[var(--page-text)] shadow-[var(--panel-shadow)] max-[700px]:row-start-3 max-[700px]:overflow-visible"
+    class={`${SIM_PANEL} col-start-1 row-start-2 flex min-h-0 flex-col overflow-hidden p-[11px] max-[700px]:row-start-3 max-[700px]:overflow-visible`}
   >
-    <h2 class="m-0 mb-[7px] text-sm tracking-[-.015em] text-[var(--page-text)]">{t('statistics')}</h2>
-    <dl
-      class="m-0 grid gap-0 [&>div]:flex [&>div]:justify-between [&>div]:gap-2 [&>div]:border-b [&>div]:border-[var(--divider)] [&>div]:py-1 [&_dt]:text-[9px] [&_dt]:text-[var(--muted-text)] [&_dd]:m-0 [&_dd]:text-[10px] [&_dd]:font-extrabold [&_dd]:text-[var(--page-text)]"
-    >
-      {#each statRows as row}
-        <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
-      {/each}
-    </dl>
+    <h2 class={`${SIM_HEADING} mb-[7px]`}>{t('statistics')}</h2>
+    <StatRows rows={statRows}/>
     <div class="mt-[7px] min-h-0">
       <span class="text-[8px] tracking-[.1em] text-[var(--muted-text)] uppercase">{t('receivedMsg')}</span>
       <p
         class="mt-1 mb-0 max-h-24 overflow-auto whitespace-pre-wrap rounded-[7px] border border-[var(--divider)] bg-[var(--diagram-bg)] p-1.5 text-[9px] leading-[1.35] text-[var(--page-text)]"
-      >{receivedMsg || t('noDataYet')}</p>
+      >{rcvdMsg || t('noDataYet')}</p>
     </div>
   </section>
 
   <section
-    class="col-start-3 row-start-1 row-span-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[13px] border border-[var(--border)] bg-[var(--surface)] p-[11px] text-[var(--page-text)] shadow-[var(--panel-shadow)] max-[1180px]:col-start-1 max-[1180px]:col-span-2 max-[1180px]:row-start-3 max-[1180px]:row-span-1 max-[1180px]:min-h-[300px] max-[700px]:col-span-1 max-[700px]:row-start-4 max-[700px]:min-h-[320px]"
+    class={`${SIM_PANEL} col-start-3 row-start-1 row-span-2 flex min-h-0 min-w-0 flex-col overflow-hidden p-[11px] max-[1180px]:col-start-1 max-[1180px]:col-span-2 max-[1180px]:row-start-3 max-[1180px]:row-span-1 max-[1180px]:min-h-[300px] max-[700px]:col-span-1 max-[700px]:row-start-4 max-[700px]:min-h-[320px]`}
   >
     <div class="mb-[7px] flex flex-none items-center justify-between gap-2.5 max-[480px]:flex-col max-[480px]:items-start">
-      <h2 class="m-0 text-sm tracking-[-.015em] text-[var(--page-text)]">{t('console')}</h2>
-      <div class="flex flex-wrap gap-[3px] rounded-lg border border-[var(--control-border)] bg-[var(--surface-2)] p-[3px]">
-        {#each moduleTabs as tab}
-          <button
-            class={[
-              'rounded-[5px] border-0 bg-transparent px-[7px] py-1 text-[9px] text-[var(--muted-text)]',
-              activeModule === tab && 'bg-[var(--selected-bg)] text-[var(--selected-text)] shadow-[inset_0_0_0_1px_var(--accent-border)]'
-            ]}
-            disabled={!hasEvents}
-            onclick={(): void => {
-              void selectModule(tab);
-            }}
-          >{tab === 'all' ? t('all') : moduleLabel(tab, curLocale)}</button>
-        {/each}
-      </div>
+      <h2 class={SIM_HEADING}>{t('console')}</h2>
+      <ConsoleTabs tabs={consoleTabs} selected={activeModule} lbl={t("console")} disabled={!hasEvents}
+        onSelect={(tab) => { void selectModule(tab); }}/>
+
     </div>
 
     <div
@@ -701,14 +593,14 @@ onDestroy(clearTimer);
           <button
             class={[
               'grid w-full grid-cols-[40px_76px_minmax(0,1fr)] gap-1.5 rounded px-[5px] py-[3px] text-start text-[9px] leading-[1.35] text-[var(--control-text)] max-[480px]:grid-cols-[36px_62px_minmax(0,1fr)]',
-              line.index === curIdx
+              line.idx === curIdx
                 ? 'bg-[var(--selected-bg)] text-[var(--selected-text)]'
                 : 'bg-transparent hover:bg-[var(--selected-bg)] hover:text-[var(--selected-text)]'
             ]}
-            onclick={(): void => jump(line.index)}
+            onclick={(): void => jump(line.idx)}
           >
-            <span class="text-[var(--muted-text)]">[{String(line.index + 1).padStart(3, '0')}]</span>
-            <span class={`module ${line.module} font-extrabold uppercase`}>{moduleLabel(line.module, curLocale)}</span>
+            <span class="text-[var(--muted-text)]">[{String(line.idx + 1).padStart(3, '0')}]</span>
+            <span class={`module ${line.module} font-extrabold uppercase`}>{moduleLbl(line.module, curLocale)}</span>
             <span>{line.text}</span>
           </button>
         {/each}
