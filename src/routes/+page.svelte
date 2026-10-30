@@ -5,6 +5,8 @@ import ButtonTheme from "#lib/components/ButtonTheme.svelte";
 import SimTCP from "#lib/components/transport/SimTCP.svelte";
 import SimUDP from "#lib/components/transport/SimUDP.svelte";
 import SimRIP from "#lib/components/network/SimRIP.svelte";
+import SimFlow from "#lib/components/network/SimFlow.svelte";
+import { onMount } from "svelte";
 import { locale, translate } from "#lib/i18n/index.ts";
 import { sims } from "#lib/sims/registry.ts";
 
@@ -16,6 +18,17 @@ let tooltipSim: Sim | null = null;
 let tooltipX: number = 0;
 let tooltipY: number = 0;
 let selectedSim: SimId = "rip";
+
+onMount(() => {
+  const selectHash = (): void => {
+    const id = window.location.hash.slice(1);
+    const sim = sims.find((candidate) => candidate.id === id && candidate.status === "available");
+    if (sim) selectedSim = sim.id;
+  };
+  selectHash();
+  window.addEventListener("hashchange", selectHash);
+  return () => window.removeEventListener("hashchange", selectHash);
+});
 
 let t: TranslateFn;
 $: t = (key: string): string => translate(`nav.${key}`, $locale);
@@ -40,7 +53,7 @@ function hideTooltip(): void {
 
 <div class={[
   "h-dvh overflow-hidden max-[1180px]:h-auto max-[1180px]:min-h-dvh max-[1180px]:overflow-visible",
-  selectedSim === "rip" && "max-[1240px]:h-auto max-[1240px]:min-h-dvh max-[1240px]:overflow-visible",
+  (selectedSim === "rip" || selectedSim === "flow") && "max-[1240px]:h-auto max-[1240px]:min-h-dvh max-[1240px]:overflow-visible",
 ]}>
   <header
     class="relative z-20 flex h-[78px] items-center gap-3.5 border-b border-[var(--divider)] bg-[var(--header-bg)] px-5 py-3 text-[var(--header-text)] backdrop-blur-[14px] max-[1180px]:h-auto max-[1180px]:min-h-[78px] max-[1180px]:px-3.5 max-[820px]:grid max-[820px]:grid-cols-[minmax(0,1fr)_auto] max-[820px]:gap-x-2 max-[820px]:gap-y-2 max-[480px]:p-2"
@@ -91,6 +104,7 @@ function hideTooltip(): void {
               : 'border-transparent bg-transparent'
           ]}
           aria-disabled={sim.status !== 'available'}
+          aria-pressed={selectedSim === sim.id}
           aria-describedby={`tooltip-${sim.id}`}
           onmouseenter={(event: MouseEvent): void => showTooltip(sim, event)}
           onmouseleave={(): void => hideTooltip()}
@@ -99,6 +113,7 @@ function hideTooltip(): void {
           onclick={(): void => {
             if (sim.status === 'available') {
               selectedSim = sim.id;
+              window.location.hash = sim.id;
             }
           }}
         >
@@ -168,12 +183,12 @@ function hideTooltip(): void {
 
   <div class={[
     "h-[calc(100dvh-78px)] min-h-0 max-[1180px]:h-auto",
-    selectedSim === "rip" && "max-[1240px]:h-auto",
+    (selectedSim === "rip" || selectedSim === "flow") && "max-[1240px]:h-auto",
   ]}>
     <main
       class={[
         "h-full min-w-0 overflow-hidden p-3 max-[1180px]:h-auto max-[1180px]:min-h-[calc(100dvh-78px)] max-[1180px]:overflow-visible max-[700px]:p-2",
-        selectedSim === "rip" && "max-[1240px]:h-auto max-[1240px]:min-h-[calc(100dvh-78px)] max-[1240px]:overflow-visible",
+        (selectedSim === "rip" || selectedSim === "flow") && "max-[1240px]:h-auto max-[1240px]:min-h-[calc(100dvh-78px)] max-[1240px]:overflow-visible",
       ]}
     >
       {#if selectedSim === 'tcp'}
@@ -182,6 +197,8 @@ function hideTooltip(): void {
         <SimUDP />
       {:else if selectedSim === 'rip'}
         <SimRIP />
+      {:else if selectedSim === 'flow'}
+        <SimFlow />
       {/if}
     </main>
   </div>

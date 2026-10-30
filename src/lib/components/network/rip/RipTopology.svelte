@@ -4,11 +4,11 @@
   import { SIM_PANEL, SIM_HEADING, SIM_DIAGRAM_HEADER, SIM_MUTED } from "#lib/components/simulation/styles.ts";
   import RouterSelect from "./RipRouterSelect.svelte";
   import PlaybackControls from "#lib/components/simulation/PlaybackControls.svelte";
-  import { nodePositions, isHighlighted, formatDur } from "#lib/sims/network/layout.ts";
-  import { routerCol, routerBadgeStyle, selectedRouteMetric } from "#lib/sims/network/router.ts";
-  import type { Pos } from "#lib/sims/network/layout.ts";
-  import type { ConsoleEntry } from "#lib/sims/network/console.ts";
-  import type { RipNode, RipEdge, RipSnapshot, RipConfig } from "#lib/sims/network/types.ts";
+  import { nodePositions, isHighlighted, formatDur } from "#lib/sims/network/rip/layout.ts";
+  import { routerCol, routerBadgeStyle, selectedRouteMetric } from "#lib/sims/network/rip/router.ts";
+  import type { Pos } from "#lib/sims/network/rip/layout.ts";
+  import type { ConsoleEntry } from "#lib/sims/network/rip/console.ts";
+  import type { RipNode, RipEdge, RipSnapshot, RipConfig } from "#lib/sims/network/rip/types.ts";
   import type { PlaybackDir } from "#lib/sims/shared/playback.ts";
 
   $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);

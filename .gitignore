@@ -3,6 +3,5 @@ node_modules
 build
 src/lib/wasm/pkg
 engine/target
-engine/Cargo.lock
 .DS_Store
 .idea

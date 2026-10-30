@@ -6,5 +6,6 @@ import { defineConfig } from "vite";
 const base = (process.env.BASE_PATH ?? "") as "" | `/${string}`;
 
 export default defineConfig({
+  server: { allowedHosts: ["terminal.local"] },
   plugins: [tailwindcss(), sveltekit({ adapter: adapter(), paths: { base } })],
 });

@@ -6,14 +6,14 @@
   import RipRoutingTable from "./rip/RipRoutingTable.svelte";
   import RipConsole from "./rip/RipConsole.svelte";
   import { randSeed } from "#lib/sims/shared/random.ts";
-  import { RipController } from "#lib/sims/network/controller.ts";
-  import { appendConsoleEvents, latestConsoleEvent } from "#lib/sims/network/console.ts";
-  import { routingTableRows } from "#lib/sims/network/router.ts";
-  import { selectedRoute } from "#lib/sims/network/layout.ts";
-  import { RIP_DEF_TO_SECS } from "#lib/sims/network/types.ts";
-  import type { RipConfig, RipNode, RipSnapshot } from "#lib/sims/network/types.ts";
-  import type { ConsoleEntry } from "#lib/sims/network/console.ts";
-  import type { DisplayRoute } from "#lib/sims/network/router.ts";
+  import { RipController } from "#lib/sims/network/rip/controller.ts";
+  import { appendConsoleEvents, latestConsoleEvent } from "#lib/sims/network/rip/console.ts";
+  import { routingTableRows } from "#lib/sims/network/rip/router.ts";
+  import { selectedRoute } from "#lib/sims/network/rip/layout.ts";
+  import { RIP_DEF_TO_SECS } from "#lib/sims/network/rip/types.ts";
+  import type { RipConfig, RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
+  import type { ConsoleEntry } from "#lib/sims/network/rip/console.ts";
+  import type { DisplayRoute } from "#lib/sims/network/rip/router.ts";
   import type { PlaybackDir } from "#lib/sims/shared/playback.ts";
 
   const defaultConfig: () => RipConfig = (): RipConfig => ({

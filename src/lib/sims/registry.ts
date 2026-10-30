@@ -33,6 +33,6 @@ export const sims: SimDef[] = [
     nameKey: "flowTitle",
     groupKey: "network",
     descriptionKey: "networkFlowOptimisation",
-    status: "unavailable",
+    status: "available",
   },
 ];

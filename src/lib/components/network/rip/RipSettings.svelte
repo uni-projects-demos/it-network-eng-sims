@@ -9,8 +9,8 @@
     RIP_CONT_TO_SECS,
     timeOutSliderVal,
     sliderTimeOutSecs,
-  } from "#lib/sims/network/types.ts";
-  import type { RipConfig } from "#lib/sims/network/types.ts";
+  } from "#lib/sims/network/rip/types.ts";
+  import type { RipConfig } from "#lib/sims/network/rip/types.ts";
 
   $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);
 

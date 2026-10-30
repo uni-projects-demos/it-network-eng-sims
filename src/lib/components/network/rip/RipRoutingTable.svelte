@@ -2,9 +2,9 @@
   import { locale, translate, type TranslationParams } from "#lib/i18n/index.ts";
   import { SIM_PANEL, SIM_HEADING, SIM_CONTROL_BTN, SIM_MUTED } from "#lib/components/simulation/styles.ts";
   import RouterSelect from "./RipRouterSelect.svelte";
-  import { routerBadgeStyle, routeStatus } from "#lib/sims/network/router.ts";
-  import type { DisplayRoute } from "#lib/sims/network/router.ts";
-  import type { RipNode, RipSnapshot } from "#lib/sims/network/types.ts";
+  import { routerBadgeStyle, routeStatus } from "#lib/sims/network/rip/router.ts";
+  import type { DisplayRoute } from "#lib/sims/network/rip/router.ts";
+  import type { RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
   $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);
   export let snapshot: RipSnapshot | null;
   export let curRouter: RipNode | undefined;

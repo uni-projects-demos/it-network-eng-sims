@@ -1,35 +1,34 @@
-import type { RipConfig, RipHandle } from "#lib/sims/network/types.ts";
+import type { FlowConfig, FlowHandle } from "#lib/sims/network/flow/types.ts";
+import type { RipConfig, RipHandle } from "#lib/sims/network/rip/types.ts";
 import { randSeed } from "#lib/sims/shared/random.ts";
 import type { SimResTCP } from "#lib/sims/transport/typesTCP.ts";
 import type { SimResUDP } from "#lib/sims/transport/typesUDP.ts";
 
-type WasmModule = {
-  SimRIP: new (options: RipConfig) => RipHandle;
-  default: () => Promise<unknown>;
-  run_tcp_sim: (
-    msg: string,
-    packetLossProb: number,
-    bitErrProb: number,
-    payloadSize: number,
-    isHandshake: boolean,
-    seed: number,
-  ) => SimResTCP;
-  run_udp_sim: (
-    msg: string,
-    packetLossProb: number,
-    payloadSize: number,
-    seed: number,
-  ) => SimResUDP;
-};
+// @ts-expect-error
+type WasmModule = typeof import("./pkg/it_network_eng.js");
 
 let wasm: WasmModule | null = null;
+let initializing: Promise<WasmModule> | null = null;
+
+async function loadEngine(): Promise<WasmModule> {
+  if (wasm) return wasm;
+  if (!initializing) {
+    initializing = (async (): Promise<WasmModule> => {
+      // @ts-expect-error
+      const module: WasmModule = await import("./pkg/it_network_eng.js");
+      await module.default();
+      wasm = module;
+      return module;
+    })().catch((error: unknown): never => {
+      initializing = null;
+      throw error;
+    });
+  }
+  return initializing;
+}
 
 export async function initEngine(): Promise<void> {
-  if (wasm) return;
-  // @ts-expect-error
-  const module: WasmModule = (await import("./pkg/it_network_eng.js")) as WasmModule;
-  await module.default();
-  wasm = module;
+  await loadEngine();
 }
 
 export async function runSimTCP(
@@ -39,13 +38,8 @@ export async function runSimTCP(
   payloadSize: number,
   isHandshake: boolean,
 ): Promise<SimResTCP> {
-  await initEngine();
-
-  if (wasm === null) {
-    throw new Error("WASM engine failed to initialize.");
-  }
-
-  return wasm.run_tcp_sim(msg, packetLossProb, bitErrProb, payloadSize, isHandshake, randSeed());
+  const module: WasmModule = await loadEngine();
+  return module.run_tcp_sim(msg, packetLossProb, bitErrProb, payloadSize, isHandshake, randSeed());
 }
 
 export async function runSimUDP(
@@ -53,21 +47,21 @@ export async function runSimUDP(
   packetLossProb: number,
   payloadSize: number,
 ): Promise<SimResUDP> {
-  await initEngine();
-
-  if (wasm === null) {
-    throw new Error("WASM engine failed to initialize.");
-  }
-
-  return wasm.run_udp_sim(msg, packetLossProb, payloadSize, randSeed());
+  const module: WasmModule = await loadEngine();
+  return module.run_udp_sim(msg, packetLossProb, payloadSize, randSeed());
 }
 
 export async function runSimRIP(options: RipConfig): Promise<RipHandle> {
-  await initEngine();
+  const module: WasmModule = await loadEngine();
+  return new module.SimRIP(options);
+}
 
-  if (wasm === null) {
-    throw new Error("WASM engine failed to initialize.");
-  }
+export async function runSimFlow(options: FlowConfig): Promise<FlowHandle> {
+  const module: WasmModule = await loadEngine();
+  return new module.SimFlow(options);
+}
 
-  return new wasm.SimRIP(options);
+export async function genFlowLP(options: FlowConfig): Promise<string> {
+  const module: WasmModule = await loadEngine();
+  return module.gen_flow_lp(options);
 }

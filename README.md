@@ -476,11 +476,6 @@ IT network engineering simulations ported to Rust/WebAssembly for interactive we
     * [Adam Ross](https://github.com/r055a)
   </details>
 
-## Requirements
-
-- Node.js `v26.6.4`
-- Rust stable
-
 ## Install
 
 ```bash

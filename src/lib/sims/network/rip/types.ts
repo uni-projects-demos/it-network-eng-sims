@@ -49,7 +49,7 @@ export type RipNode = {
   id: number;
   is_running: boolean;
   is_quiescent: boolean;
-  auto_restart_in: number | null;
+  auto_restart_in: number | null | undefined;
   active_nbrs: number;
   garbage_nbrs: number;
   routes: RipRoute[];
@@ -59,17 +59,19 @@ export type RipEdge = {
   a: number;
   b: number;
   cost: number;
+  can_increase: boolean;
+  can_decrease: boolean;
 };
 export type RipEvent = {
   time: number;
   _type: RipEventType;
   router: number;
-  peer: number | null;
-  dest: number | null;
-  old_metric: number | null;
-  new_metric: number | null;
-  old_hop: number | null;
-  new_hop: number | null;
+  peer: number | null | undefined;
+  dest: number | null | undefined;
+  old_metric: number | null | undefined;
+  new_metric: number | null | undefined;
+  old_hop: number | null | undefined;
+  new_hop: number | null | undefined;
   msg: string;
 };
 export type RipStats = {
@@ -82,13 +84,18 @@ export type RipStats = {
   route_changes: number;
   invalids: number;
   garbage_collections: number;
+  fails: number;
+  restarts: number;
+  rand_fails: number;
+  rand_recovs: number;
   is_converged: boolean;
   accuracy: number;
+  reachable_pairs: number;
   rip_reachability: number;
   shortest_path_cost_mean: number;
   shortest_path_cost_min: number;
   shortest_path_cost_max: number;
-  convergence_secs: number | null;
+  convergence_secs: number | null | undefined;
 };
 export type RipSnapshot = {
   time: number;

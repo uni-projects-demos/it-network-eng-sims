@@ -1,15 +1,15 @@
 <script lang="ts">
   import { locale, translate, type TranslationParams } from "#lib/i18n/index.ts";
-  import { ripEventText } from "#lib/sims/network/i18n.ts";
+  import { ripEventText } from "#lib/sims/network/rip/i18n.ts";
   import { tick } from "svelte";
   import RouterSelect from "./RipRouterSelect.svelte";
   import ConsoleTabs from "#lib/components/simulation/ConsoleTabs.svelte";
   import { SIM_PANEL, SIM_HEADING, SIM_MUTED } from "#lib/components/simulation/styles.ts";
-  import { formatDur } from "#lib/sims/network/layout.ts";
-  import { routerCol } from "#lib/sims/network/router.ts";
-  import { CONSOLE_FILTERS, eventTone, visibleConsoleEvents } from "#lib/sims/network/console.ts";
-  import type { ConsoleEntry, ConsoleFilter } from "#lib/sims/network/console.ts";
-  import type { RipNode, RipSnapshot } from "#lib/sims/network/types.ts";
+  import { formatDur } from "#lib/sims/network/rip/layout.ts";
+  import { routerCol } from "#lib/sims/network/rip/router.ts";
+  import { CONSOLE_FILTERS, eventTone, visibleConsoleEvents } from "#lib/sims/network/rip/console.ts";
+  import type { ConsoleEntry, ConsoleFilter } from "#lib/sims/network/rip/console.ts";
+  import type { RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
 
   $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);
   export let entries: ConsoleEntry[];

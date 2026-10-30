@@ -1,7 +1,7 @@
 <script lang="ts">
   import { locale, translate } from "#lib/i18n/index.ts";
   import { SIM_FIELD } from "#lib/components/simulation/styles.ts";
-  import { routerBadgeStyle } from "#lib/sims/network/router.ts";
+  import { routerBadgeStyle } from "#lib/sims/network/rip/router.ts";
 
   export let id: string;
   export let lbl: string;

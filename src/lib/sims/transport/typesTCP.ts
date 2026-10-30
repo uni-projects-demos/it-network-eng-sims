@@ -4,6 +4,7 @@ import type {
   TransportPacket,
   PacketType as TransportPacketType,
   TransportResult,
+  TransportStats,
 } from "./typesTransport.ts";
 
 export type {
@@ -26,4 +27,10 @@ export type PacketS = TransportPacket<PacketType>;
 
 export type SimEvent = TransportEvent<EventType, PacketType>;
 
-export type SimResTCP = TransportResult<SimEvent>;
+export type StatsTCP = TransportStats & {
+  bit_errs: number;
+  bit_err_prob: number;
+  header_size: number;
+};
+
+export type SimResTCP = TransportResult<SimEvent, StatsTCP>;

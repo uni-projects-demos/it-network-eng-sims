@@ -3,7 +3,7 @@
   import StatRows from "#lib/components/simulation/StatRows.svelte";
   import { SIM_PANEL, SIM_HEADING } from "#lib/components/simulation/styles.ts";
   import type { StatRow } from "#lib/sims/shared/stats.ts";
-  import type { RipNode, RipSnapshot } from "#lib/sims/network/types.ts";
+  import type { RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
   export let snapshot: RipSnapshot | null;
 
   let rows: readonly StatRow[];

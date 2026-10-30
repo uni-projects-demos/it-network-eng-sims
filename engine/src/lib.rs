@@ -1,11 +1,14 @@
-#[rustfmt::skip]
-mod rip;
+mod network;
+pub use network::flow;
 mod transport;
 
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
+#[wasm_bindgen(typescript_custom_section)]
+const TRANSPORT_TYPES: &str = "import type { SimResTCP } from '../../sims/transport/typesTCP';\nimport type { SimResUDP } from '../../sims/transport/typesUDP';";
+
+#[wasm_bindgen(unchecked_return_type = "SimResTCP")]
 pub fn run_tcp_sim(
     msg: &str,
     packet_loss_prob: f64,
@@ -33,7 +36,7 @@ pub fn run_tcp_sim(
     serialize(&res)
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(unchecked_return_type = "SimResUDP")]
 pub fn run_udp_sim(
     msg: &str,
     packet_loss_prob: f64,
@@ -69,6 +72,12 @@ fn validate_payload_size(payload_size: usize) -> Result<(), JsValue> {
 
 fn serialize<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(value).map_err(|err: serde_wasm_bindgen::Error| -> JsValue {
+        JsValue::from_str(&err.to_string())
+    })
+}
+
+fn deserialize<T: DeserializeOwned>(value: JsValue) -> Result<T, JsValue> {
+    serde_wasm_bindgen::from_value(value).map_err(|err: serde_wasm_bindgen::Error| -> JsValue {
         JsValue::from_str(&err.to_string())
     })
 }
