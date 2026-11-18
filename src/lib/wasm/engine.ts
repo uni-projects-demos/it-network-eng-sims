@@ -6,6 +6,7 @@ import { randSeed } from "#lib/sims/shared/random.ts";
 import type { SimResTCP } from "#lib/sims/transport/typesTCP.ts";
 import type { SimResUDP } from "#lib/sims/transport/typesUDP.ts";
 
+// @ts-expect-error
 type WasmModule = typeof import("./pkg/it_network_eng.js");
 
 let wasm: WasmModule | null = null;
@@ -15,6 +16,7 @@ async function loadEngine(): Promise<WasmModule> {
   if (wasm) return wasm;
   if (!initializing) {
     initializing = (async (): Promise<WasmModule> => {
+      // @ts-expect-error
       const module: WasmModule = await import("./pkg/it_network_eng.js");
       await module.default();
       wasm = module;
