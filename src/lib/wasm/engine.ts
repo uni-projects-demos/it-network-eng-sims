@@ -1,10 +1,11 @@
 import type { FlowConfig, FlowHandle } from "#lib/sims/network/flow/types.ts";
+import type { OspfConfig, OspfHandle } from "#lib/sims/network/ospf/types.ts";
 import type { RipConfig, RipHandle } from "#lib/sims/network/rip/types.ts";
+import type { WsnConfig, WsnHandle } from "#lib/sims/network/wsn/types.ts";
 import { randSeed } from "#lib/sims/shared/random.ts";
 import type { SimResTCP } from "#lib/sims/transport/typesTCP.ts";
 import type { SimResUDP } from "#lib/sims/transport/typesUDP.ts";
 
-// @ts-expect-error
 type WasmModule = typeof import("./pkg/it_network_eng.js");
 
 let wasm: WasmModule | null = null;
@@ -14,7 +15,6 @@ async function loadEngine(): Promise<WasmModule> {
   if (wasm) return wasm;
   if (!initializing) {
     initializing = (async (): Promise<WasmModule> => {
-      // @ts-expect-error
       const module: WasmModule = await import("./pkg/it_network_eng.js");
       await module.default();
       wasm = module;
@@ -54,6 +54,18 @@ export async function runSimUDP(
 export async function runSimRIP(options: RipConfig): Promise<RipHandle> {
   const module: WasmModule = await loadEngine();
   return new module.SimRIP(options);
+}
+
+export async function runSimOSPF(options: OspfConfig): Promise<OspfHandle> {
+  const module: WasmModule = await loadEngine();
+  return new module.SimOSPF(options);
+}
+
+export async function runSimWSN(options: WsnConfig): Promise<WsnHandle> {
+  const module: WasmModule = await loadEngine();
+  const typed: WasmModule & { SimWSN: new (config: WsnConfig) => WsnHandle } =
+    module as WasmModule & { SimWSN: new (config: WsnConfig) => WsnHandle };
+  return new typed.SimWSN(options);
 }
 
 export async function runSimFlow(options: FlowConfig): Promise<FlowHandle> {

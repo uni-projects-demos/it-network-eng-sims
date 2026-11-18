@@ -1,5 +1,5 @@
 interface SimDef {
-  id: "tcp" | "udp" | "rip" | "flow";
+  id: "tcp" | "udp" | "rip" | "ospf" | "flow" | "wsn";
   nameKey: string;
   groupKey: string;
   descriptionKey: string;
@@ -26,6 +26,20 @@ export const sims: SimDef[] = [
     nameKey: "ripTitle",
     groupKey: "network",
     descriptionKey: "ripRouting",
+    status: "available",
+  },
+  {
+    id: "ospf",
+    nameKey: "ospfTitle",
+    groupKey: "network",
+    descriptionKey: "ospfRouting",
+    status: "available",
+  },
+  {
+    id: "wsn",
+    nameKey: "wsnTitle",
+    groupKey: "network",
+    descriptionKey: "wsnSimulation",
     status: "available",
   },
   {

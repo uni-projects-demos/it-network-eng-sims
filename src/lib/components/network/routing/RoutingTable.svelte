@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { locale, translate, type TranslationParams } from "#lib/i18n/index.ts";
+  import { locale, type TranslationParams } from "#lib/i18n/index.ts";
+  import { routingText } from "#lib/sims/network/routing/i18n.ts";
   import { SIM_PANEL, SIM_HEADING, SIM_CONTROL_BTN, SIM_MUTED } from "#lib/components/simulation/styles.ts";
-  import RouterSelect from "./RipRouterSelect.svelte";
-  import { routerBadgeStyle, routeStatus } from "#lib/sims/network/rip/router.ts";
-  import type { DisplayRoute } from "#lib/sims/network/rip/router.ts";
-  import type { RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
-  $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);
-  export let snapshot: RipSnapshot | null;
-  export let curRouter: RipNode | undefined;
+  import RouterSelect from "#lib/components/simulation/NodeSelect.svelte";
+  import { routeInfinity, routeStatus } from "#lib/sims/network/routing/router.ts";
+  import { nodeBadgeStyle } from "#lib/sims/shared/nodeColors.ts";
+  import type { DisplayRoute } from "#lib/sims/network/routing/router.ts";
+  import type { RoutingNode, RoutingSnapshot, RoutingProtocol } from "#lib/sims/network/routing/types.ts";
+  $: t = (key: string, params: TranslationParams = {}): string => routingText(protocol, key, $locale, params);
+  export let snapshot: RoutingSnapshot | null;
+  export let protocol: RoutingProtocol;
+  export let curRouter: RoutingNode | undefined;
   export let displayRoutes: DisplayRoute[];
   export let selectedRouter: number;
   export let selectedDest: number;
@@ -19,16 +22,24 @@
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 class={SIM_HEADING}>{t("routingTable")}</h2>
         <div class="flex items-center gap-2">
-          <label for="rip-table-router" class="text-[10px] font-[650] text-[var(--control-text)]">{t("router")}</label>
-          <RouterSelect id="rip-table-router" lbl={t("routingTableRouter")} val={selectedRouter}
-            routerIds={snapshot?.nodes.map(node => node.id) ?? []}
+          <label for="routing-table-router" class="text-[10px] font-[650] text-[var(--control-text)]">{t("router")}</label>
+          <RouterSelect id="routing-table-router" lbl={t("routingTableRouter")} val={selectedRouter}
+            nodeIds={snapshot?.nodes.map(node => node.id) ?? []}
             onSelect={(routerId) => { selectedRouter = routerId; }} />
           {#if curRouter && !curRouter.is_running && !snapshot?.is_complete}
             <button class={SIM_CONTROL_BTN} onclick={() => onRestart(selectedRouter)}>{t("restart")}</button>
           {/if}
         </div>
       </div>
-      <div class={`mb-2 text-[10px] ${SIM_MUTED}`}>{!curRouter?.is_running ? curRouter?.auto_restart_in != null ? t("temporaryInactive", {seconds: curRouter.auto_restart_in.toFixed(1)}): t("terminated"): curRouter.is_quiescent ? t("neighborsAllGarbage"): t("activeNeighbors", {active: curRouter.active_nbrs, garbage: curRouter.garbage_nbrs})}</div>
+      {#if curRouter && !curRouter.is_running}
+        <div class={`mb-2 text-[10px] ${SIM_MUTED}`}>
+          {curRouter.auto_restart_in != null
+            ? t("temporaryInactive", {seconds: curRouter.auto_restart_in.toFixed(1)})
+            : t("terminated")}
+        </div>
+      {:else if protocol === "rip" && curRouter?.is_quiescent}
+        <div class={`mb-2 text-[10px] ${SIM_MUTED}`}>{t("neighborsAllGarbage")}</div>
+      {/if}
       <div class="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--divider)]">
         <table class="w-full min-w-max table-auto border-collapse text-left text-[11px] whitespace-nowrap">
           <thead class="sticky top-0 bg-[var(--surface-2)]">
@@ -36,7 +47,7 @@
           </thead>
           <tbody>
             {#each displayRoutes as r (r.dest)}
-              {@const status = r.isOffline ? 'Offline' : routeStatus(r)}
+              {@const status = r.isOffline ? 'Offline' : routeStatus(r, protocol)}
               <tr class:font-bold={r.dest === selectedDest} class="group relative border-t border-[var(--divider)] hover:bg-[var(--selected-bg)]" style:opacity={r.isOffline ? 0.57 : 1}>
                 <td class="px-3 py-1.5">
                   <button type="button"
@@ -48,20 +59,20 @@
                     <span class="sr-only">{t("selectRoute", {to: r.dest})}</span>
                   </button>
                   <span class="inline-block rounded-md border border-black/10 px-1.5 py-0.5 font-semibold whitespace-nowrap"
-                    style={routerBadgeStyle(r.dest)} class:line-through={r.isOffline}>R{r.dest}</span>
+                    style={nodeBadgeStyle(r.dest)} class:line-through={r.isOffline}>R{r.dest}</span>
                 </td>
                 <td class="px-3 py-1.5">
-                  {#if r.isOffline || r.metric >= 16}
+                  {#if r.isOffline || r.metric >= routeInfinity(protocol)}
                     <span class:line-through={r.isOffline}>—</span>
                   {:else}
-                    <span class="inline-block rounded-md border border-black/10 px-1.5 py-0.5 font-semibold" style={routerBadgeStyle(r.nxt_hop)}>R{r.nxt_hop}</span>
+                    <span class="inline-block rounded-md border border-black/10 px-1.5 py-0.5 font-semibold" style={nodeBadgeStyle(r.nxt_hop)}>R{r.nxt_hop}</span>
                   {/if}
                 </td>
-                <td class:line-through={r.isOffline} class="px-3 py-1.5">{r.metric === 16 ? '∞ (16)' : r.metric}</td>
+                <td class:line-through={r.isOffline} class="px-3 py-1.5">{r.metric >= routeInfinity(protocol) ? (protocol === 'rip' ? '∞ (16)' : '∞') : r.metric}</td>
                 <td class="px-3 py-1.5" class:line-through={r.isOffline}>
-                  <span class="inline-flex items-center gap-1" title={t(status === "Offline" ? "offline" : status === "Unreachable (invalid)" ? "unreachableInvalid" : status === "Reachable (direct)" ? "reachableDirect" : "reachableIndirect")}>
+                  <span class="inline-flex items-center gap-1" title={t(status === "Offline" ? "offline" : status === "Unreachable (invalid)" ? (protocol === "ospf" ? "unreachable" : "unreachableInvalid") : status === "Reachable (direct)" ? "reachableDirect" : "reachableIndirect")}>
                     <span class={`size-1.5 shrink-0 rounded-full ${status === 'Unreachable (invalid)' ? 'bg-[var(--danger)]' : status === 'Offline' ? 'bg-[var(--muted-text)]' : 'bg-[var(--receiver)]'}`}></span>
-                    {t(status === "Offline" ? "offline" : status === "Unreachable (invalid)" ? "unreachableInvalid" : status === "Reachable (direct)" ? "reachableDirect" : "reachableIndirect")}
+                    {t(status === "Offline" ? "offline" : status === "Unreachable (invalid)" ? (protocol === "ospf" ? "unreachable" : "unreachableInvalid") : status === "Reachable (direct)" ? "reachableDirect" : "reachableIndirect")}
                   </span>
                 </td>
               </tr>

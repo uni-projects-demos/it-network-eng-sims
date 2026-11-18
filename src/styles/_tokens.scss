@@ -1,10 +1,14 @@
-@import "tailwindcss";
-
 :root {
   color-scheme: dark;
 
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 
   --primary: #8dc7ff;
   --primary-text: #06111a;
@@ -49,6 +53,13 @@
   --receiver: #7ed9a9;
   --receiver-soft: #cef5df;
   --receiver-fill: #153c2b;
+
+  --wsn-battery-track: #d5f3e2;
+  --wsn-battery-high: #9de8bf;
+  --wsn-battery-medium: #ffd5a5;
+  --wsn-battery-low: #ffb7c2;
+  --wsn-battery-border: #e6edf3;
+  --wsn-gateway-ring: #ffd16b;
 
   --channel: #ffd663;
   --channel-fill: #493c19;
@@ -137,6 +148,13 @@
   --receiver-soft: #8fd0ad;
   --receiver-fill: #e5f4ec;
 
+  --wsn-battery-track: #dcf5e5;
+  --wsn-battery-high: #6ac58e;
+  --wsn-battery-medium: #eeb478;
+  --wsn-battery-low: #e58c9b;
+  --wsn-battery-border: #344757;
+  --wsn-gateway-ring: #ffae42;
+
   --channel: #edc465;
   --channel-fill: #fff6d9;
   --channel-text: #c99e36;
@@ -175,87 +193,4 @@
   --scroll-track: #eef2f6;
   --scroll-thumb: #b7c4d0;
   --scroll-thumb-hover: #91a4b5;
-}
-
-@layer base {
-  html,
-  body {
-    min-width: 320px;
-    min-height: 100%;
-  }
-
-  body {
-    color: var(--page-text);
-    background: radial-gradient(circle at 20% 0%, var(--page-bg-accent) 0, var(--page-bg) 42rem);
-  }
-
-  button {
-    color: inherit;
-    cursor: pointer;
-  }
-
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.64;
-    filter: saturate(0.72);
-  }
-
-  ::selection {
-    background: #4f79ab;
-    color: #fff;
-  }
-
-  * {
-    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
-    scrollbar-width: thin;
-  }
-
-  *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: var(--scroll-track);
-  }
-
-  *::-webkit-scrollbar-thumb {
-    border: 2px solid var(--scroll-track);
-    border-radius: 999px;
-    background: var(--scroll-thumb);
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background: var(--scroll-thumb-hover);
-  }
-}
-
-@layer components {
-  .icon-button {
-    @apply inline-flex h-11 min-w-11 flex-none items-center justify-center rounded-[9px] border p-2;
-
-    border-color: var(--header-control-border);
-    background: var(--header-control-bg);
-    color: var(--header-control-text);
-
-    transition:
-      background 0.16s,
-      border-color 0.16s,
-      color 0.16s,
-      transform 0.16s;
-  }
-
-  .icon-button:hover {
-    border-color: var(--header-control-hover-border);
-    background: var(--header-control-hover);
-  }
-
-  .icon-button:active {
-    transform: translateY(1px);
-  }
-
-  .icon-button:focus-visible {
-    outline: 3px solid var(--focus-ring);
-    outline-offset: 3px;
-  }
 }

@@ -1,16 +1,16 @@
 # IT Network Engineering Simulations
 
-IT network engineering simulations ported to Rust/WebAssembly for interactive web demos with SvelteKit UI:
+Interactive IT network engineering simulations using Rust/WASM and SvelteKit UI:
 
 * <details><summary>TCP/UDP File Transfer</summary>
 
     ## TCP/UDP
 
-    Python Transmission Control Protocol (TCP) & User Datagram Protocol (UDP) applications for simulating sequential byte-file transfer between sender, receiver & network channel socket interfaces.
+    Python Transmission Control Protocol (TCP) and User Datagram Protocol (UDP) applications for simulating sequential byte-file transfer between sender, receiver and network channel socket interfaces. Ported to Rust.
 
     ### TCP Example
 
-    The expected packet loss rate is `N/((1-P)(1-P))`, where `N` & `P` are independent packet bit error & loss probabilities, respectively. Here, `"Hello World!"` is transmitted with `N = 0.1` & `P = 0.5`:
+    The expected packet loss rate is $N/((1-P)(1-P))$, where $N$ and $P$ are independent packet bit error and loss probabilities, respectively. Here, `"Hello World!"` is transmitted with `N = 0.1` and `P = 0.5`:
 
     #### Channel console output
 
@@ -138,7 +138,7 @@ IT network engineering simulations ported to Rust/WebAssembly for interactive we
 
     ## RIP
 
-    Python application for simulating Routing Information Protocol (RIP).
+    Python application for simulating Routing Information Protocol (RIP). Ported to Rust.
 
     ### RIP Example
 
@@ -398,11 +398,11 @@ IT network engineering simulations ported to Rust/WebAssembly for interactive we
 
     ## Flow
 
-    Python application for generating LP files used in printing [CPLEX](https://github.com/R055A/Flow/blob/master/doc/cplex.log) XYZ-network flow solutions, where X & Z are source & destination nodes, respectively; & Y are transit nodes, with constraints `X >= Z > 0`, `Y > 2`.
+    Python application for generating LP files used in printing [CPLEX](https://github.com/R055A/Flow/blob/master/doc/cplex.log) $XYZ$-network flow solutions, where $X$ and $Z$ are source and destination nodes, respectively; and $Y$ are transit nodes, with constraints $X >= Z > 0, Y > 2$. Ported to Rust.
 
     ### Flow Example
 
-    CPLEX output for generated LP input file `Y=7.lp`, where `X = Y = Z = 7`:
+    CPLEX output for generated LP input file `Y=7.lp`, where `X=Y=Z=7`:
 
     ```text
     Problem 'Y=7.lp' read.
@@ -475,8 +475,10 @@ IT network engineering simulations ported to Rust/WebAssembly for interactive we
     * [Robert Loomes](https://github.com/robloomes)
     * [Adam Ross](https://github.com/r055a)
   </details>
+* OSPF Routing
+* WSN (CSMA/TDMA) Routing
 
-## Install
+# Install
 
 ```bash
 rustup target add wasm32-unknown-unknown
@@ -484,24 +486,24 @@ cargo install wasm-pack
 ```
 
 ```bash
-npm install
+npm ci
 ```
 
-## Run
+# Run
 
 ```bash
-npm run dev:all
+npm run dev:wasm
 ```
 
-## Build
+# Build
 
 ```bash
-npm run build:all
+npm run build:wasm
 ```
 
 # Contribute
 
-Before making a Pull Request, ensure it addresses an Issue, and verify the branch passes:
+Before making an Issue-linked Pull Request, verify it passes CI checks:
 
 ```bash
 npm run verify:fix

@@ -1,6 +1,6 @@
-import type { RipEvent, RipEventType } from "./types.ts";
+import type { RoutingEvent, RoutingEventType } from "./types.ts";
 
-export type ConsoleEntry = RipEvent & Readonly<{ id: number }>;
+export type ConsoleEntry = RoutingEvent & Readonly<{ id: number }>;
 export const CONSOLE_FILTERS: readonly ["all", "routing", "msgs", "faults"] = [
   "all",
   "routing",
@@ -11,15 +11,16 @@ export type ConsoleFilter = (typeof CONSOLE_FILTERS)[number];
 export const MAX_STORED_CONSOLE_EVENTS: number = 20_000;
 export const MAX_VISIBLE_CONSOLE_EVENTS: number = 1_200;
 
-const ROUTING_EVENTS: ReadonlySet<RipEventType> = new Set([
+const ROUTING_EVENTS: ReadonlySet<RoutingEventType> = new Set([
   "discover",
   "route_change",
   "invalidate",
   "route_garbage",
   "converged",
   "link_cost",
+  "spf",
 ]);
-const MSG_EVENTS: ReadonlySet<RipEventType> = new Set([
+const MSG_EVENTS: ReadonlySet<RoutingEventType> = new Set([
   "send",
   "receive",
   "periodic",
@@ -29,26 +30,29 @@ const MSG_EVENTS: ReadonlySet<RipEventType> = new Set([
   "packet_invalid_setting",
   "packet_dropped",
 ]);
-const FAULT_EVENTS: ReadonlySet<RipEventType> = new Set([
+const FAULT_EVENTS: ReadonlySet<RoutingEventType> = new Set([
   "timeout",
   "neighbor_garbage",
   "all_garbage",
+  "adjacency_down",
   "router_down",
   "router_restart",
   "auto_failure",
   "auto_recovery",
   "recovered",
+  "adjacency_up",
   "packet_dropped",
   "complete",
 ]);
-const DANGER_EVENTS: ReadonlySet<RipEventType> = new Set([
+const DANGER_EVENTS: ReadonlySet<RoutingEventType> = new Set([
   "router_down",
   "auto_failure",
   "timeout",
   "invalidate",
   "all_garbage",
+  "adjacency_down",
 ]);
-const RECOVERY_EVENTS: ReadonlySet<RipEventType> = new Set([
+const RECOVERY_EVENTS: ReadonlySet<RoutingEventType> = new Set([
   "route_change",
   "discover",
   "recovered",
@@ -56,10 +60,14 @@ const RECOVERY_EVENTS: ReadonlySet<RipEventType> = new Set([
   "router_restart",
   "auto_recovery",
   "link_cost",
+  "adjacency_up",
 ]);
-const WARNING_EVENTS: ReadonlySet<RipEventType> = new Set(["route_garbage", "neighbor_garbage"]);
+const WARNING_EVENTS: ReadonlySet<RoutingEventType> = new Set([
+  "route_garbage",
+  "neighbor_garbage",
+]);
 
-export function eventMatchesFilter(_type: RipEventType, filter: ConsoleFilter): boolean {
+export function eventMatchesFilter(_type: RoutingEventType, filter: ConsoleFilter): boolean {
   switch (filter) {
     case "all":
       return true;
@@ -72,7 +80,7 @@ export function eventMatchesFilter(_type: RipEventType, filter: ConsoleFilter): 
   }
 }
 
-export function eventTone(_type: RipEventType): "danger" | "receiver" | "timeout" | "primary" {
+export function eventTone(_type: RoutingEventType): "danger" | "receiver" | "timeout" | "primary" {
   if (DANGER_EVENTS.has(_type)) return "danger";
   if (RECOVERY_EVENTS.has(_type)) return "receiver";
   if (WARNING_EVENTS.has(_type)) return "timeout";
@@ -124,12 +132,12 @@ export function visibleConsoleEvents(
 
 export function appendConsoleEvents(
   existing: readonly ConsoleEntry[],
-  added: readonly RipEvent[],
+  added: readonly RoutingEvent[],
   nxtId: number,
 ): ConsoleEntry[] {
   if (added.length === 0) return [...existing];
   const appended: ConsoleEntry[] = added.map(
-    (event: RipEvent, idx: number): ConsoleEntry => ({ ...event, id: nxtId + idx }),
+    (event: RoutingEvent, idx: number): ConsoleEntry => ({ ...event, id: nxtId + idx }),
   );
   return [...existing, ...appended].slice(-MAX_STORED_CONSOLE_EVENTS);
 }

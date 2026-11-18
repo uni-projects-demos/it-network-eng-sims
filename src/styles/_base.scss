@@ -1,0 +1,86 @@
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  color: var(--page-text);
+  background: radial-gradient(circle at 20% 0%, var(--page-bg-accent) 0, var(--page-bg) 42rem);
+}
+
+button {
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+  filter: saturate(0.72);
+}
+
+::selection {
+  background: #4f79ab;
+  color: #fff;
+}
+
+* {
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid var(--scroll-track);
+  border-radius: 999px;
+  background: var(--scroll-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+.icon-button {
+  display: inline-flex;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 1px solid;
+  border-radius: 9px;
+
+  border-color: var(--header-control-border);
+  background: var(--header-control-bg);
+  color: var(--header-control-text);
+
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    color 0.16s,
+    transform 0.16s;
+}
+
+.icon-button:hover {
+  border-color: var(--header-control-hover-border);
+  background: var(--header-control-hover);
+}
+
+.icon-button:active {
+  transform: translateY(1px);
+}
+
+.icon-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}

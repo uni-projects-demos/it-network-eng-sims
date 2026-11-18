@@ -1,27 +1,29 @@
 <script lang="ts">
-  import { locale, translate } from "#lib/i18n/index.ts";
-  import { SIM_FIELD } from "#lib/components/simulation/styles.ts";
-  import { routerBadgeStyle } from "#lib/sims/network/rip/router.ts";
+  import { SIM_FIELD } from "./styles.ts";
+  import { nodeBadgeStyle } from "#lib/sims/shared/nodeColors.ts";
 
   export let id: string;
   export let lbl: string;
   export let val: number;
-  export let routerIds: readonly number[];
-  export let onSelect: (routerId: number) => void;
+  export let nodeIds: readonly number[];
+  export let onSelect: (nodeId: number) => void;
   export let isIncludeAll: boolean = false;
+  export let allValue: number = 0;
+  export let allLabel: string = "All";
+  export let labelFor: ((id: number) => string) | undefined = undefined;
   export let disabled: boolean = false;
 
   let trigger: HTMLButtonElement;
   let menu: HTMLDivElement;
   let open: boolean = false;
-  $: choices = isIncludeAll ? [0, ...routerIds] : [...routerIds];
+  $: choices = isIncludeAll ? [allValue, ...nodeIds] : [...nodeIds];
 
-  function optionLbl(routerId: number): string {
-    return routerId === 0 ? translate("rip.allRouters", $locale) : `R${routerId}`;
+  function optionLbl(nodeId: number): string {
+    return labelFor ? labelFor(nodeId) : nodeId === allValue ? allLabel : `R${nodeId}`;
   }
 
-  function focusOption(routerId: number): void {
-    menu?.querySelector<HTMLElement>(`[data-router-id="${routerId}"]`)?.focus();
+  function focusOption(nodeId: number): void {
+    menu?.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)?.focus();
   }
 
   function show(): void {
@@ -41,8 +43,8 @@
     focusOption(choices.includes(val) ? val : choices[0]);
   }
 
-  function choose(routerId: number): void {
-    onSelect(routerId);
+  function choose(nodeId: number): void {
+    onSelect(nodeId);
     if (menu?.matches(":popover-open")) menu.hidePopover();
     trigger?.focus();
   }
@@ -63,7 +65,7 @@
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
     event.preventDefault();
-    const focused: number = Number((event.target as HTMLElement).dataset.routerId);
+    const focused: number = Number((event.target as HTMLElement).dataset.nodeId);
     const curIdx: number = Math.max(0, choices.indexOf(focused));
     const nxtIdx: number = event.key === "Home" ? 0
       : event.key === "End" ? choices.length - 1
@@ -73,7 +75,7 @@
 </script>
 
 <button bind:this={trigger} id={id} type="button" class={`${SIM_FIELD} inline-flex shrink-0 items-center justify-between gap-2 whitespace-nowrap text-left`}
-  style={val > 0 ? routerBadgeStyle(val): undefined}
+  style={val > 0 ? nodeBadgeStyle(val) : val === 0 && allValue !== 0 ? "background: var(--sender-soft); color: #16202c" : undefined}
   aria-label={lbl} aria-haspopup="listbox" aria-controls={`${id}-listbox`} aria-expanded={open}
   {disabled} onclick={show} onkeydown={onTriggerKeydown}>
   <span class="font-semibold">{optionLbl(val)}</span>
@@ -86,16 +88,16 @@
   class="overflow-y-auto rounded-lg border border-[var(--field-border)] bg-[var(--surface-solid)] p-1 shadow-lg"
   ontoggle={(event) => { open = (event.currentTarget as HTMLElement).matches(":popover-open"); }}
   onkeydown={onMenuKeydown}>
-  {#each choices as routerId (routerId)}
-    <button type="button" role="option" aria-selected={val === routerId} data-router-id={routerId}
+  {#each choices as nodeId (nodeId)}
+    <button type="button" role="option" aria-selected={val === nodeId} data-node-id={nodeId}
       class="flex min-h-[32px] w-full cursor-pointer items-center rounded-md px-1.5 text-left text-[11px] hover:bg-[var(--selected-bg)] focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
-      tabindex={val === routerId ? 0 : -1} onclick={() => choose(routerId)}>
-      {#if routerId === 0}
-        <span class="px-1.5 text-[var(--page-text)]">{translate("rip.allRouters", $locale)}</span>
+      tabindex={val === nodeId ? 0 : -1} onclick={() => choose(nodeId)}>
+      {#if nodeId === allValue}
+        <span class="px-1.5 text-[var(--page-text)]">{optionLbl(nodeId)}</span>
       {:else}
-        <span class="rounded-md border border-black/10 px-2 py-1 font-semibold" style={routerBadgeStyle(routerId)}>{optionLbl(routerId)}</span>
+        <span class="rounded-md border border-black/10 px-2 py-1 font-semibold" style={nodeId === 0 ? "background: var(--sender-soft); color: #16202c" : nodeBadgeStyle(nodeId)}>{optionLbl(nodeId)}</span>
       {/if}
-      {#if val === routerId}<span class="ms-auto px-1 text-[var(--page-text)]" aria-hidden="true">✓</span>{/if}
+      {#if val === nodeId}<span class="ms-auto px-1 text-[var(--page-text)]" aria-hidden="true">✓</span>{/if}
     </button>
   {/each}
 </div>

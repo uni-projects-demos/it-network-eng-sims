@@ -1,0 +1,22 @@
+.routing-layout {
+  &__settings {
+    gap: 10px;
+  }
+}
+.routing-settings {
+  padding-block: 10px;
+  .sim-settings-label {
+    margin-top: 7px;
+  }
+}
+.routing-stats {
+  padding: 9px 11px;
+  dl > div {
+    padding-block: 3px;
+  }
+}
+@media (max-width: 1240px) {
+  .routing-layout__settings {
+    gap: 12px;
+  }
+}

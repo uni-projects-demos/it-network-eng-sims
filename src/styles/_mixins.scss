@@ -1,0 +1,19 @@
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@mixin control-surface {
+  border: 1px solid var(--control-border);
+  border-radius: 9px;
+  background: var(--control-bg);
+  color: var(--control-text);
+}
+
+@mixin panel-scroll {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}

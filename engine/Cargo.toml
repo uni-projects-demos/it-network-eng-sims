@@ -1,7 +1,8 @@
 [package]
 name = "it-network-eng-sim"
-description = "IT network engineering simulations ported to Rust/WebAssembly for interactive web demos with SvelteKit UI."
-repository = "https://github.com/r055a/it-network-eng-sims"
+rust-version = "1.100"
+description = "Rust/WASM engine for an interactive IT network engineering simulations, including TCP, UDP, RIP, OSPF, WSN, & Network Flow Optimisation."
+repository = "https://github.com/uni-projects-demos/it-network-eng-sims"
 license = "GPL-3.0"
 version = "1.0.0"
 edition = "2024"

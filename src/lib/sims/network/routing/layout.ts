@@ -1,8 +1,15 @@
-import type { RipConfig, RipEdge, RipNode, RipRoute } from "./types.ts";
+import {
+  type RoutingConfig,
+  type RoutingEdge,
+  type RoutingNode,
+  type RoutingProtocol,
+  type RoutingRoute,
+  routeInfinity,
+} from "./types.ts";
 
 export type Pos = { id: number; x: number; y: number };
 type XY = { x: number; y: number };
-type EdgeEndpoints = Pick<RipEdge, "a" | "b">;
+type EdgeEndpoints = Pick<RoutingEdge, "a" | "b">;
 
 const DEFAULT_WIDTH: number = 960;
 const DEFAULT_HEIGHT: number = 585;
@@ -33,12 +40,12 @@ function segmentsCross(a: XY, b: XY, c: XY, d: XY): boolean {
   return on(a, b, c) || on(a, b, d) || on(c, d, a) || on(c, d, b);
 }
 
-export function hasEdgeCrossings(positions: Pos[], edges: EdgeEndpoints[]): boolean {
-  const points: Map<number, Pos> = new Map(positions.map((p: Pos): [number, Pos] => [p.id, p]));
+export function hasEdgeCrossings(pos: Pos[], edges: EdgeEndpoints[]): boolean {
+  const pnts: Map<number, Pos> = new Map(pos.map((p: Pos): [number, Pos] => [p.id, p]));
   for (let i: number = 0; i < edges.length; i++) {
     const first: EdgeEndpoints = edges[i];
-    const a: Pos | undefined = points.get(first.a),
-      b: Pos | undefined = points.get(first.b);
+    const a: Pos | undefined = pnts.get(first.a),
+      b: Pos | undefined = pnts.get(first.b);
     if (!a || !b) continue;
     for (let j: number = i + 1; j < edges.length; j++) {
       const second: EdgeEndpoints = edges[j];
@@ -49,8 +56,8 @@ export function hasEdgeCrossings(positions: Pos[], edges: EdgeEndpoints[]): bool
         first.b === second.b
       )
         continue;
-      const c: Pos | undefined = points.get(second.a),
-        d: Pos | undefined = points.get(second.b);
+      const c: Pos | undefined = pnts.get(second.a),
+        d: Pos | undefined = pnts.get(second.b);
       if (c && d && segmentsCross(a, b, c, d)) return true;
     }
   }
@@ -68,13 +75,13 @@ function pointToSegment(p: XY, a: XY, b: XY): number {
 }
 
 function layoutPenalty(
-  points: Map<number, XY>,
-  edges: RipEdge[],
+  pnts: Map<number, XY>,
+  edges: RoutingEdge[],
   width: number,
   height: number,
   nodeRadius: number,
 ): number {
-  const vals: XY[] = [...points.values()];
+  const vals: XY[] = [...pnts.values()];
   const areaPerNode: number = Math.sqrt(
     Math.max(1, (width - 120) * (height - 120)) / Math.max(1, vals.length),
   );
@@ -104,15 +111,15 @@ function layoutPenalty(
   }
 
   for (const edge of edges) {
-    const a: XY = reqPos(points, edge.a),
-      b: XY = reqPos(points, edge.b);
+    const a: XY = reqPos(pnts, edge.a),
+      b: XY = reqPos(pnts, edge.b);
     const dx: number = b.x - a.x,
       dy: number = b.y - a.y;
     const length: number = Math.max(1, Math.hypot(dx, dy));
     const lblExtent: number = (30 * Math.abs(dx) + 17 * Math.abs(dy)) / length;
     const endpointGap: number = length / 2 - nodeRadius - lblExtent;
     if (endpointGap < 18) penalty += (18 - endpointGap) ** 2 * 12;
-    for (const [id, p] of points) {
+    for (const [id, p] of pnts) {
       if (id === edge.a || id === edge.b) continue;
       const gap: number = pointToSegment(p, a, b);
       const desired: number = nodeRadius + 27;
@@ -120,20 +127,20 @@ function layoutPenalty(
     }
   }
 
-  const lbls: { x: number; y: number; edge: RipEdge }[] = edges.map(
-    (e: RipEdge): { x: number; y: number; edge: RipEdge } => {
-      const a: XY = reqPos(points, e.a),
-        b: XY = reqPos(points, e.b);
+  const lbls: { x: number; y: number; edge: RoutingEdge }[] = edges.map(
+    (e: RoutingEdge): { x: number; y: number; edge: RoutingEdge } => {
+      const a: XY = reqPos(pnts, e.a),
+        b: XY = reqPos(pnts, e.b);
       return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, edge: e };
     },
   );
   for (let i: number = 0; i < lbls.length; i++) {
-    const lbl: { x: number; y: number; edge: RipEdge } = lbls[i];
+    const lbl: { x: number; y: number; edge: RoutingEdge } = lbls[i];
     for (let j: number = i + 1; j < lbls.length; j++) {
       const gap: number = Math.hypot(lbl.x - lbls[j].x, lbl.y - lbls[j].y);
       if (gap < 47) penalty += (47 - gap) ** 2 * 4;
     }
-    for (const [id, p] of points) {
+    for (const [id, p] of pnts) {
       if (id === lbl.edge.a || id === lbl.edge.b) continue;
       const gap: number = Math.hypot(lbl.x - p.x, lbl.y - p.y);
       if (gap < nodeRadius + 29) penalty += (nodeRadius + 29 - gap) ** 2 * 5;
@@ -153,22 +160,20 @@ export function assignmentPositions(w: number, h: number, nodeRadius: number): P
     { id: 7, x: 0.49, y: 0.47 },
   ];
   const margin: number = nodeRadius + 30;
-  const availableWidth: number = Math.max(1, w - 2 * margin);
-  const availableHeight: number = Math.max(1, h - 2 * margin);
   return reference.map(({ id, x, y }: Pos): { id: number; x: number; y: number } => ({
     id,
-    x: margin + x * availableWidth,
-    y: margin + y * availableHeight,
+    x: margin + x * Math.max(1, w - 2 * margin),
+    y: margin + y * Math.max(1, h - 2 * margin),
   }));
 }
 
 export function nodePositions(
-  nodes: RipNode[],
-  edges: RipEdge[],
+  nodes: RoutingNode[],
+  edges: RoutingEdge[],
   width: number = DEFAULT_WIDTH,
   height: number = DEFAULT_HEIGHT,
   nodeRadius: number = 31,
-  topology: RipConfig["topology"] = "rand",
+  topology: RoutingConfig["topology"] = "rand",
 ): Pos[] {
   if (!nodes.length) return [];
   if (topology === "default") {
@@ -178,7 +183,7 @@ export function nodePositions(
   width = Math.max(200, width);
   height = Math.max(300, height);
   const adjacency: Map<number, number[]> = new Map<number, number[]>(
-    nodes.map((node: RipNode): [number, number[]] => [node.id, []]),
+    nodes.map((node: RoutingNode): [number, number[]] => [node.id, []]),
   );
   for (const edge of edges) {
     adjacency.get(edge.a)?.push(edge.b);
@@ -208,7 +213,7 @@ export function nodePositions(
   }
   if (cycle.size < 3) {
     const padding: number = nodeRadius + 25;
-    return nodes.map((node: RipNode, i: number): { id: number; x: number; y: number } => ({
+    return nodes.map((node: RoutingNode, i: number): { id: number; x: number; y: number } => ({
       id: node.id,
       x: width / 2 + Math.cos((i * 2 * Math.PI) / nodes.length) * (width / 2 - padding),
       y: height / 2 + Math.sin((i * 2 * Math.PI) / nodes.length) * (height / 2 - padding),
@@ -314,7 +319,7 @@ export function nodePositions(
       ]),
     );
     const positioned: { x: number; y: number; id: number }[] = nodes.map(
-      (node: RipNode): { x: number; y: number; id: number } => ({
+      (node: RoutingNode): { x: number; y: number; id: number } => ({
         id: node.id,
         ...reqPos(points, node.id),
       }),
@@ -345,7 +350,7 @@ export function nodePositions(
       for (const child of children.get(id) ?? []) markRoot(child, anchor);
     }
     for (const id of order) markRoot(id, id);
-    const points: Map<number, XY> = best.points;
+    const pnts: Map<number, XY> = best.points;
     const padding: number = nodeRadius + 20;
     let curPenalty: number = best.score;
     const dirs: { x: number; y: number }[] = Array.from(
@@ -359,10 +364,10 @@ export function nodePositions(
       for (let sweep: number = 0; sweep < 2; sweep++) {
         for (const node of nodes) {
           if (fixed.has(node.id)) continue;
-          const original: XY = reqPos(points, node.id);
+          const original: XY = reqPos(pnts, node.id);
           const anchorId: number | undefined = root.get(node.id);
           if (anchorId === undefined) throw new Error(`Missing branch root for router ${node.id}.`);
-          const anchor: XY = reqPos(points, anchorId);
+          const anchor: XY = reqPos(pnts, anchorId);
           const away: { x: number; y: number } = {
             x: anchor.x - cycleCenter.x,
             y: anchor.y - cycleCenter.y,
@@ -383,24 +388,24 @@ export function nodePositions(
               continue;
             if ((proposed.x - anchor.x) * away.x + (proposed.y - anchor.y) * away.y < -EPSILON)
               continue;
-            points.set(node.id, proposed);
+            pnts.set(node.id, proposed);
             if (
               hasEdgeCrossings(
-                nodes.map((n: RipNode): { x: number; y: number; id: number } => ({
+                nodes.map((n: RoutingNode): { x: number; y: number; id: number } => ({
                   id: n.id,
-                  ...reqPos(points, n.id),
+                  ...reqPos(pnts, n.id),
                 })),
                 edges,
               )
             )
               continue;
-            const score: number = layoutPenalty(points, edges, width, height, nodeRadius);
+            const score: number = layoutPenalty(pnts, edges, width, height, nodeRadius);
             if (score + 1e-5 < choicePenalty) {
               choice = proposed;
               choicePenalty = score;
             }
           }
-          points.set(node.id, choice);
+          pnts.set(node.id, choice);
           curPenalty = choicePenalty;
         }
       }
@@ -408,25 +413,32 @@ export function nodePositions(
   }
 
   if (!best) {
-    throw new Error("RIP topology must not have crossing links.");
+    throw new Error("Routing topology must not have crossing links.");
   }
-  return nodes.map((node: RipNode): { x: number; y: number; id: number } => ({
+  return nodes.map((node: RoutingNode): { x: number; y: number; id: number } => ({
     id: node.id,
     ...reqPos(best.points, node.id),
   }));
 }
 
-export function selectedRoute(nodes: RipNode[], from: number, to: number): number[] {
+export function selectedRoute(
+  nodes: RoutingNode[],
+  from: number,
+  to: number,
+  protocol: RoutingProtocol,
+): number[] {
   if (from === to) return [from];
   const visited: Set<number> = new Set<number>();
   const hops: number[] = [from];
   let cur: number = from;
   for (let i: number = 0; i < nodes.length; i++) {
-    const node: RipNode | undefined = nodes.find((r: RipNode): boolean => r.id === cur);
+    const node: RoutingNode | undefined = nodes.find((r: RoutingNode): boolean => r.id === cur);
     if (!node?.is_running || visited.has(cur)) return [];
     visited.add(cur);
-    const nxt: RipRoute | undefined = node.routes.find((r: RipRoute): boolean => r.dest === to);
-    if (!nxt || nxt.metric >= 16) return [];
+    const nxt: RoutingRoute | undefined = node.routes.find(
+      (r: RoutingRoute): boolean => r.dest === to,
+    );
+    if (!nxt || nxt.metric >= routeInfinity(protocol)) return [];
     cur = nxt.nxt_hop;
     if (cur === to) return [...hops, to];
     hops.push(cur);
@@ -434,7 +446,7 @@ export function selectedRoute(nodes: RipNode[], from: number, to: number): numbe
   return [];
 }
 
-export function isHighlighted(edge: RipEdge, path: number[]): boolean {
+export function isHighlighted(edge: RoutingEdge, path: number[]): boolean {
   for (let i: number = 1; i < path.length; i++) {
     if (
       (edge.a === path[i - 1] && edge.b === path[i]) ||

@@ -1,5 +1,6 @@
 use super::{EventType, Sim, Snapshot, NodeView, Edge, INF, MAX_LINK_COST, MIN_LINK_COST};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
+use super::super::routing::shortest_paths;
 
 impl Sim {
     pub(super) fn has_rip_path(&self, src: u16, dest: u16) -> bool {
@@ -28,27 +29,11 @@ impl Sim {
         let mut rip_reachable = 0usize;
         let alive: Vec<u16> = self.nodes.values().filter(|r| r.is_running).map(|r| r.id).collect();
         for &src in &alive {
-            let mut dist: BTreeMap<u16, u16> = alive.iter().map(|&id| (id, 10000)).collect();
-            dist.insert(src, 0);
-            let mut visited = BTreeSet::new();
-            for _ in 0..alive.len() {
-                let cur = dist.iter().filter(|(id, _)| !visited.contains(*id))
-                    .min_by_key(|(_, cost)| **cost).map(|(&id, _)| id);
-                let Some(cur) = cur else { break; };
-                visited.insert(cur);
-                let cur_cost = dist[&cur];
-                for edge in &self.edges {
-                    let other = if edge.a == cur { Some(edge.b) }
-                        else if edge.b == cur { Some(edge.a) } else { None };
-                    if let Some(other) = other
-                        && let Some(current) = dist.get_mut(&other) {
-                            *current = (*current).min(cur_cost + u16::from(edge.cost));
-                        }
-                }
-            }
+            let available = alive.iter().copied().collect::<BTreeSet<u16>>();
+            let dist = shortest_paths(&available, &self.edges, src);
             for dest in 1..=self.cfg.nodes {
                 if src == dest { continue; }
-                let ideal = dist.get(&dest).copied().unwrap_or(10000).min(u16::from(INF)) as u8;
+                let ideal = dist.get(&dest).map_or(10000, |path| path.cost).min(u16::from(INF)) as u8;
                 let actual = self.nodes[&src].routes.get(&dest).map_or(INF, |r| r.metric);
                 if self.has_rip_path(src, dest) { rip_reachable += 1; }
                 total += 1;

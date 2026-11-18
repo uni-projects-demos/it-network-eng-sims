@@ -1,31 +1,40 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import RipSettings from "./rip/RipSettings.svelte";
-  import RipStatistics from "./rip/RipStats.svelte";
-  import RipTopology from "./rip/RipTopology.svelte";
-  import RipRoutingTable from "./rip/RipRoutingTable.svelte";
-  import RipConsole from "./rip/RipConsole.svelte";
+  import RoutingSettings from "./routing/RoutingSettings.svelte";
+  import RoutingStatistics from "./routing/RoutingStats.svelte";
+  import RoutingTopology from "./routing/RoutingTopology.svelte";
+  import RoutingTable from "./routing/RoutingTable.svelte";
+  import RoutingConsole from "./routing/RoutingConsole.svelte";
   import { randSeed } from "#lib/sims/shared/random.ts";
+  import { RoutingController } from "#lib/sims/network/routing/controller.ts";
   import { RipController } from "#lib/sims/network/rip/controller.ts";
-  import { appendConsoleEvents, latestConsoleEvent } from "#lib/sims/network/rip/console.ts";
-  import { routingTableRows } from "#lib/sims/network/rip/router.ts";
-  import { selectedRoute } from "#lib/sims/network/rip/layout.ts";
-  import { RIP_DEF_TO_SECS } from "#lib/sims/network/rip/types.ts";
-  import type { RipConfig, RipNode, RipSnapshot } from "#lib/sims/network/rip/types.ts";
-  import type { ConsoleEntry } from "#lib/sims/network/rip/console.ts";
-  import type { DisplayRoute } from "#lib/sims/network/rip/router.ts";
+  import { OspfController } from "#lib/sims/network/ospf/controller.ts";
+  import { appendConsoleEvents, latestConsoleEvent } from "#lib/sims/network/routing/console.ts";
+  import { routingTableRows } from "#lib/sims/network/routing/router.ts";
+  import { selectedRoute } from "#lib/sims/network/routing/layout.ts";
+  import { ROUTING_DEF_TO_SECS } from "#lib/sims/network/routing/types.ts";
+  import type { RoutingConfig, RoutingNode, RoutingSnapshot } from "#lib/sims/network/routing/types.ts";
+  import type { ConsoleEntry } from "#lib/sims/network/routing/console.ts";
+  import type { DisplayRoute } from "#lib/sims/network/routing/router.ts";
   import type { PlaybackDir } from "#lib/sims/shared/playback.ts";
 
-  const defaultConfig: () => RipConfig = (): RipConfig => ({
-    nodes: 7, seed: 1, topology: "default", to_secs: RIP_DEF_TO_SECS,
+  import type { RoutingProtocol } from "#lib/sims/network/routing/types.ts";
+  export let protocol: RoutingProtocol;
+
+  type RoutingActions = Pick<RoutingController<RoutingSnapshot>,
+    "load" | "pause" | "play" | "setSpeed" | "move" | "terminate" | "restart" |
+    "setLinkCost" | "setPacketLoss" | "setPacketInvalid" | "dispose">;
+
+  const defaultConfig: () => RoutingConfig = (): RoutingConfig => ({
+    nodes: 7, seed: 1, topology: "default", to_secs: ROUTING_DEF_TO_SECS,
     rand_fail_perc: 0, pck_loss_perc: 0, pck_invalid_perc: 0,
   });
 
-  let cfg: RipConfig = defaultConfig();
-  let activeTopology: RipConfig["topology"] = "default";
-  let controller: RipController;
+  let cfg: RoutingConfig = defaultConfig();
+  let activeTopology: RoutingConfig["topology"] = "default";
+  let controller: RoutingActions;
   let topologyComponent: { focus: () => void } | undefined;
-  let snapshot: RipSnapshot | null = null;
+  let snapshot: RoutingSnapshot | null = null;
   let isPlaying: boolean = false;
   let speed: number = 1;
   let isLoading: boolean = false;
@@ -35,22 +44,22 @@
   let consoleSession: number = 0;
   let selectedRouter: number = 1;
   let selectedDest: number = 3;
-  let curRouter: RipNode | undefined;
+  let curRouter: RoutingNode | undefined;
   let displayRoutes: DisplayRoute[] = [];
   let availableDests: number[] = [];
   let highlightPath: number[] = [];
   let focusEvent: ConsoleEntry | undefined;
 
-  $: curRouter = snapshot?.nodes.find((node: RipNode): boolean => node.id === selectedRouter);
-  $: displayRoutes = routingTableRows(curRouter);
+  $: curRouter = snapshot?.nodes.find((node: RoutingNode): boolean => node.id === selectedRouter);
+  $: displayRoutes = routingTableRows(curRouter, protocol);
   $: availableDests = displayRoutes.map((route: DisplayRoute): number => route.dest);
   $: if (!availableDests.includes(selectedDest)) {
     selectedDest = availableDests[0] ?? 0;
   }
-  $: highlightPath = snapshot ? selectedRoute(snapshot.nodes, selectedRouter, selectedDest): [];
+  $: highlightPath = snapshot ? selectedRoute(snapshot.nodes, selectedRouter, selectedDest, protocol): [];
   $: focusEvent = latestConsoleEvent(entries, snapshot?.time ?? 0);
 
-  function consume(nxt: RipSnapshot): void {
+  function consume(nxt: RoutingSnapshot): void {
     snapshot = nxt;
     if (nxt.events.length > 0) {
       entries = appendConsoleEvents(entries, nxt.events, nxtConsoleEventId);
@@ -82,7 +91,7 @@
     }
   }
 
-  function updateConfig(changes: Partial<RipConfig>): void {
+  function updateConfig(changes: Partial<RoutingConfig>): void {
     cfg = { ...cfg, ...changes };
   }
   function changePacketSetting(_type: "loss" | "invalid", percent: number): void {
@@ -107,7 +116,15 @@
   function changeSpeed(val: number): void { speed = val; controller.setSpeed(val); }
 
   onMount((): () => void => {
-    controller = new RipController(
+    const callback = (
+      onSnapshot: (snapshot: RoutingSnapshot) => void,
+      onError: (message: string) => void,
+      onBranch: (time: number) => void,
+      onPlaying: (isPlaying: boolean) => void,
+    ): RoutingActions => protocol === "rip"
+      ? new RipController(onSnapshot, onError, onBranch, onPlaying)
+      : new OspfController(onSnapshot, onError, onBranch, onPlaying);
+    controller = callback(
       consume,
       (msg: string): void => { err = msg; },
       (time: number): void => { entries = entries.filter((event: ConsoleEntry): boolean => event.time <= time + 0.000001); },
@@ -118,29 +135,29 @@
   });
 </script>
 
-<div class="grid h-full min-h-0 min-w-0 grid-cols-[minmax(225px,.76fr)_minmax(480px,1.85fr)_minmax(275px,1fr)] grid-rows-[minmax(0,1fr)] gap-3 max-[1240px]:h-auto max-[1240px]:grid-cols-[minmax(260px,.8fr)_minmax(0,1.65fr)] max-[1240px]:grid-rows-none max-[760px]:grid-cols-1">
-  <aside class="flex h-full min-h-0 min-w-0 flex-col gap-3 max-[1240px]:h-auto max-[760px]:contents">
-    <RipSettings {cfg} {isLoading} {err}
+<div class="routing-layout grid h-full min-h-0 min-w-0 grid-cols-[minmax(225px,.76fr)_minmax(480px,1.85fr)_minmax(275px,1fr)] grid-rows-[minmax(0,1fr)] gap-3 max-[1240px]:h-auto max-[1240px]:grid-cols-[minmax(260px,.8fr)_minmax(0,1.65fr)] max-[1240px]:grid-rows-none max-[760px]:grid-cols-1">
+  <aside class="routing-layout__settings flex h-full min-h-0 min-w-0 flex-col gap-3 max-[1240px]:h-auto max-[760px]:contents">
+    <RoutingSettings {protocol} {cfg} {isLoading} {err}
       onConfigChange={updateConfig}
       onPacketLoss={(percent) => changePacketSetting("loss", percent)}
       onPacketInvalid={(percent) => changePacketSetting("invalid", percent)}
       onReset={() => { cfg = defaultConfig(); void reset(false); }}
       onGenerate={() => { cfg = { ...cfg, topology: "rand" }; void reset(true); }}/>
-    <RipStatistics {snapshot}/>
+    <RoutingStatistics {protocol} {snapshot}/>
   </aside>
 
-  <RipTopology bind:this={topologyComponent} {snapshot} cfgTimeout={cfg.to_secs}
+  <RoutingTopology {protocol} bind:this={topologyComponent} {snapshot} cfgTimeout={cfg.to_secs}
     {activeTopology} bind:selectedRouter bind:selectedDest
     {availableDests} {highlightPath} {focusEvent} {isPlaying} {speed} {isLoading}
     onMove={move} onToggle={toggle} onSpeed={changeSpeed}
     onTerminate={(id) => controller.terminate(id)} onAdjustLink={adjustLinkCost}/>
 
   <aside class="flex h-full min-h-0 min-w-0 flex-col gap-3 max-[1240px]:col-span-2 max-[1240px]:h-auto max-[1240px]:flex-row max-[760px]:contents">
-    <RipRoutingTable {snapshot} {curRouter} {displayRoutes} bind:selectedRouter
+    <RoutingTable {protocol} {snapshot} {curRouter} {displayRoutes} bind:selectedRouter
       {selectedDest}
       onRestart={(id) => controller.restart(id)} onSelectDest={selectDest}/>
     {#key consoleSession}
-      <RipConsole {entries} {snapshot}/>
+      <RoutingConsole {protocol} {entries} {snapshot}/>
     {/key}
   </aside>
 </div>

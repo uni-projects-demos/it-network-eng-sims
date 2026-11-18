@@ -6,7 +6,8 @@ export type FlowMsgKey = keyof typeof english.flow;
 export type FlowTranslator = (key: FlowMsgKey, params?: TranslationParams) => string;
 
 export function flowTranslator(code: string): FlowTranslator {
-  return (key, params): string => translate(`flow.${key}`, code, params);
+  return (key, params: TranslationParams | undefined): string =>
+    translate(`flow.${key}`, code, params);
 }
 
 export function flowErr(err: unknown, code: string): string {

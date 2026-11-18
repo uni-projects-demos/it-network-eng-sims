@@ -60,7 +60,7 @@ export interface FlowBenchmark {
 
 export const FLOW_WORK_LIMIT: number = 100_000_000;
 
-export const defaultFlowConfig = (): FlowConfig => ({
+export const defaultFlowConfig: () => FlowConfig = (): FlowConfig => ({
   srcs: 7,
   trans: 7,
   dests: 7,

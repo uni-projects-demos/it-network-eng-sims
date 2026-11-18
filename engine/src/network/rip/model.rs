@@ -1,9 +1,6 @@
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
-use super::{Config, Rand};
-
-#[derive(Debug, Clone, Serialize)]
-pub(super) struct Edge { pub(super) a: u16, pub(super) b: u16, pub(super) cost: u8, pub(super) can_increase: bool, pub(super) can_decrease: bool }
+use super::{Config, Edge, Rand};
 
 #[derive(Debug, Clone)]
 pub(super) struct Peer {

@@ -24,7 +24,9 @@ export class FlowController {
       let computeMS: number = performance.now() - started;
       this.onSnapshot(res, computeMS);
       while (res.status === "feasible" && res.work < FLOW_WORK_LIMIT) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        await new Promise<void>((resolve: (value: void | PromiseLike<void>) => void) =>
+          setTimeout(resolve, 0),
+        );
         if (gen !== this.gen) return null;
         const stepStarted: number = performance.now();
         res = handle.advance(Math.min(4096, FLOW_WORK_LIMIT - res.work));

@@ -1,20 +1,24 @@
 <script lang="ts">
-  import { locale, translate, type TranslationParams } from "#lib/i18n/index.ts";
+  import { locale, type TranslationParams } from "#lib/i18n/index.ts";
+  import { routingText } from "#lib/sims/network/routing/i18n.ts";
   import { onMount } from "svelte";
   import { SIM_PANEL, SIM_HEADING, SIM_DIAGRAM_HEADER, SIM_MUTED } from "#lib/components/simulation/styles.ts";
-  import RouterSelect from "./RipRouterSelect.svelte";
+  import RouterSelect from "#lib/components/simulation/NodeSelect.svelte";
   import PlaybackControls from "#lib/components/simulation/PlaybackControls.svelte";
-  import { nodePositions, isHighlighted, formatDur } from "#lib/sims/network/rip/layout.ts";
-  import { routerCol, routerBadgeStyle, selectedRouteMetric } from "#lib/sims/network/rip/router.ts";
-  import type { Pos } from "#lib/sims/network/rip/layout.ts";
-  import type { ConsoleEntry } from "#lib/sims/network/rip/console.ts";
-  import type { RipNode, RipEdge, RipSnapshot, RipConfig } from "#lib/sims/network/rip/types.ts";
+  import { nodePositions, isHighlighted, formatDur } from "#lib/sims/network/routing/layout.ts";
+  import { selectedRouteMetric } from "#lib/sims/network/routing/router.ts";
+  import { nodeColor, nodeBadgeStyle } from "#lib/sims/shared/nodeColors.ts";
+  import { graphNodeRadius } from "#lib/sims/shared/graph.ts";
+  import type { Pos } from "#lib/sims/network/routing/layout.ts";
+  import type { ConsoleEntry } from "#lib/sims/network/routing/console.ts";
+  import type { RoutingNode, RoutingEdge, RoutingSnapshot, RoutingConfig, RoutingProtocol } from "#lib/sims/network/routing/types.ts";
   import type { PlaybackDir } from "#lib/sims/shared/playback.ts";
 
-  $: t = (key: string, params: TranslationParams = {}): string => translate(`rip.${key}`, $locale, params);
-  export let snapshot: RipSnapshot | null;
+  $: t = (key: string, params: TranslationParams = {}): string => routingText(protocol, key, $locale, params);
+  export let snapshot: RoutingSnapshot | null;
+  export let protocol: RoutingProtocol;
   export let cfgTimeout: number;
-  export let activeTopology: RipConfig["topology"];
+  export let activeTopology: RoutingConfig["topology"];
   export let selectedRouter: number;
   export let selectedDest: number;
   export let availableDests: number[];
@@ -37,20 +41,14 @@
   let posMap: Map<number, Pos> = new Map();
   let layoutSignature: string = "";
   let nodeRadius: number = 31;
-  let curRouter: RipNode | undefined;
+  let curRouter: RoutingNode | undefined;
   let routeMetric: string = "—";
 
-  function radiusFor(count: number, w: number, h: number): number {
-    const usable: number = Math.max(1, (w - 110) * (h - 110));
-    return Math.min(count >= 14 ? 25 : 31,
-      Math.max(16, Math.floor(0.30 * Math.sqrt(usable / Math.max(1, count)))));
-  }
-
-  $: curRouter = snapshot?.nodes.find((node: RipNode): boolean => node.id === selectedRouter);
-  $: routeMetric = selectedRouteMetric(curRouter, selectedDest);
-  $: nodeRadius = radiusFor(snapshot?.nodes.length ?? 7, graphWidth, graphHeight);
+  $: curRouter = snapshot?.nodes.find((node: RoutingNode): boolean => node.id === selectedRouter);
+  $: routeMetric = selectedRouteMetric(curRouter, selectedDest, protocol);
+  $: nodeRadius = graphNodeRadius(snapshot?.nodes.length ?? 7, graphWidth, graphHeight);
   $: {
-    const topology: string = snapshot?.edges.map((edge: RipEdge): string => `${edge.a}-${edge.b}`).join(",") ?? "";
+    const topology: string = snapshot?.edges.map((edge: RoutingEdge): string => `${edge.a}-${edge.b}`).join(",") ?? "";
     const key: string = `${activeTopology}:${snapshot?.nodes.length ?? 0}:${topology}:${graphWidth}:${graphHeight}`;
     if (key !== layoutSignature) {
       layoutSignature = key;
@@ -71,7 +69,7 @@
     sectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function stateCol(node: RipNode): string {
+  function stateCol(node: RoutingNode): string {
     return !node.is_running ? "var(--danger)" : node.is_quiescent ? "var(--timeout)" : "var(--receiver)";
   }
 
@@ -110,10 +108,10 @@
       {#if snapshot}
         <svg role="img" aria-label={t("networkAria")} viewBox={`0 0 ${graphWidth} ${graphHeight}`} class="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <pattern id="rip-grid" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--divider)" opacity=".24" /></pattern>
-            <filter id="rip-glow"><feGaussianBlur stdDeviation="4" /></filter>
+            <pattern id="routing-grid" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--divider)" opacity=".24" /></pattern>
+            <filter id="routing-glow"><feGaussianBlur stdDeviation="4" /></filter>
           </defs>
-          <rect width={graphWidth} height={graphHeight} fill="url(#rip-grid)" />
+          <rect width={graphWidth} height={graphHeight} fill="url(#routing-grid)" />
           {#each snapshot.edges as edge (`${edge.a}-${edge.b}`)}
             {@const from = posMap.get(edge.a)}
             {@const to = posMap.get(edge.b)}
@@ -122,7 +120,7 @@
             {#if from && to}
               {@const midX = (from.x + to.x) / 2}
               {@const midY = (from.y + to.y) / 2}
-              {#if onPath}<line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="var(--primary)" stroke-width="11" opacity=".1" filter="url(#rip-glow)" />{/if}
+              {#if onPath}<line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="var(--primary)" stroke-width="11" opacity=".1" filter="url(#routing-glow)" />{/if}
               <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={down ? 'var(--danger)' : onPath ? 'var(--primary)' : 'var(--border)'} stroke-width={onPath ? 4 : 1.8} stroke-dasharray={down ? '7 6' : undefined} opacity={down ? .45 : onPath ? 1 : .7}/>
               <g transform={`translate(${midX},${midY})`}>
                 <rect x="-29" y="-16" width="35" height="32" rx="7" fill="var(--surface-solid)" stroke={onPath ? 'var(--primary)' : 'var(--divider)'} stroke-width="1" />
@@ -148,7 +146,7 @@
               <g transform={`translate(${pos.x},${pos.y})`}>
                 {#if node.id === selectedRouter}<circle r={nodeRadius + 12} fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-dasharray="6 3" />{/if}
                 <circle r={nodeRadius} fill="var(--surface-solid)" stroke={stateCol(node)} stroke-width="3.5" opacity={node.is_running ? 1 : .55}/>
-                <circle r={nodeRadius - 8} fill={routerCol(node.id)?.fill ?? 'var(--sender-fill)'} opacity="1" />
+                <circle r={nodeRadius - 8} fill={nodeColor(node.id)?.fill ?? 'var(--sender-fill)'} opacity="1" />
                 <text x="0" y="6" fill="#16202c" font-size="19" font-weight="800" text-anchor="middle" pointer-events="none">{node.id}</text>
                 {#if node.auto_restart_in != null}
                   <title>{t("routerAutoRestart", {id: node.id, seconds: node.auto_restart_in.toFixed(1)})}</title>
@@ -166,7 +164,7 @@
         </svg>
         {#if focusEvent && ['send', 'receive'].includes(focusEvent._type) && focusEvent.peer}
           <div class="pointer-events-none absolute right-3 bottom-3 rounded-lg border border-[var(--divider)] bg-[var(--surface-solid)] px-3 py-2 text-[10px] shadow-md">
-            <span class="font-semibold text-[var(--primary)]">{t("ripResponse")}</span> · R{focusEvent._type === 'send' ? focusEvent.router : focusEvent.peer} → R{focusEvent._type === 'send' ? focusEvent.peer : focusEvent.router}
+            <span class="font-semibold text-[var(--primary)]">{protocol === "rip" ? t("ripResponse") : t("lsa")}</span> · R{focusEvent._type === 'send' ? focusEvent.router : focusEvent.peer} → R{focusEvent._type === 'send' ? focusEvent.peer : focusEvent.router}
           </div>
         {/if}
       {:else}
@@ -181,27 +179,27 @@
     </div>
     <div class="flex min-w-0 items-center gap-3 border-t border-[var(--divider)] bg-[var(--surface-2)] px-3 py-3 text-xs max-[600px]:flex-wrap">
       <div class="flex shrink-0 items-center gap-1.5 font-semibold">
-        <label for="rip-from">{t("from")}</label>
-        <RouterSelect id="rip-from" lbl={t("sourceRouter")} val={selectedRouter}
-          routerIds={snapshot?.nodes.map(node => node.id) ?? []}
+        <label for={`${protocol}-from`}>{t("from")}</label>
+        <RouterSelect id={`${protocol}-from`} lbl={t("sourceRouter")} val={selectedRouter}
+          nodeIds={snapshot?.nodes.map(node => node.id) ?? []}
           onSelect={(routerId) => { selectedRouter = routerId; }} />
       </div>
       <div class="flex min-w-0 flex-1 items-center justify-evenly gap-1 overflow-x-auto py-1" aria-label={t("selectedRoute")}>
         {#if highlightPath.length > 0}
           {#each highlightPath as routerId, idx}
             {#if idx > 0}<span class="shrink-0 text-base font-bold text-[var(--primary)]" aria-hidden="true">→</span>{/if}
-            <span class="min-w-[31px] shrink-0 rounded-lg border border-black/10 px-2 py-1 text-center font-semibold" style={routerBadgeStyle(routerId)}>R{routerId}</span>
+            <span class="min-w-[31px] shrink-0 rounded-lg border border-black/10 px-2 py-1 text-center font-semibold" style={nodeBadgeStyle(routerId)}>R{routerId}</span>
           {/each}
         {:else}
           <span class={`whitespace-nowrap text-[11px] ${SIM_MUTED}`}>{t("noRoute")}</span>
         {/if}
       </div>
       <div class="flex shrink-0 items-center gap-1.5 font-semibold">
-        <label for="rip-to">{t("to")}</label>
-        <RouterSelect id="rip-to" lbl={t("destinationRouter")} val={selectedDest}
-          routerIds={availableDests} disabled={availableDests.length === 0}
+        <label for={`${protocol}-to`}>{t("to")}</label>
+        <RouterSelect id={`${protocol}-to`} lbl={t("destinationRouter")} val={selectedDest}
+          nodeIds={availableDests} disabled={availableDests.length === 0}
           onSelect={(routerId) => { selectedDest = routerId; }} />
       </div>
-      <span class="min-w-10 shrink-0 rounded-md bg-[var(--label-bg)] px-2 py-1.5 text-center font-mono font-bold" title={t("curRouteMetric")}>{routeMetric}</span>
+      <span class="min-w-10 shrink-0 rounded-md bg-[var(--label-bg)] px-2 py-1.5 text-center font-mono font-bold" title={t("currentRouteMetric")}>{routeMetric}</span>
     </div>
   </section>

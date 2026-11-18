@@ -1,11 +1,11 @@
 import { type Locale, type TranslationParams, translate } from "#lib/i18n/index.ts";
-import type { RipEvent } from "./types.ts";
+import type { RoutingEvent } from "../routing/types.ts";
 
 export function ripText(key: string, code: Locale, params: TranslationParams = {}): string {
   return translate(`rip.${key}`, code, params);
 }
 
-export function ripEventText(event: RipEvent, code: Locale): string {
+export function ripEventText(event: RoutingEvent, code: Locale): string {
   const t: (key: string, params?: TranslationParams) => string = (
     key: string,
     params: TranslationParams = {},
@@ -93,5 +93,7 @@ export function ripEventText(event: RipEvent, code: Locale): string {
       const match: RegExpExecArray | null = /after (\d+(?:\.\d+)?)s/u.exec(event.msg);
       return match ? t("eventConverged", { seconds: match[1] }) : event.msg;
     }
+    default:
+      return event.msg;
   }
 }
